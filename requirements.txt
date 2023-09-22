@@ -1,0 +1,3 @@
+git+https://github.com/m-bain/whisperx.git@v3.1.1
+#Cython
+#nemo_toolkit[all]

@@ -4,7 +4,7 @@ import gradio as gr
 import os
 import torch
 
-from events import whisper_process
+from events import whisper_process, fastconformer_process
 
 #########################################
 ############UI zone######################
@@ -15,15 +15,15 @@ with gr.Blocks() as ui:
     with gr.Tab(label="WhisperX"):
         with gr.Row():
             # # input field for audio / video file
-            input_files = gr.Files(label="Input Files")
+            whisper_input_files = gr.Files(label="Input Files")
 
             def clear():
                 return None
 
             with gr.Column():
                 with gr.Row():
-                    fconformer_btn_run = gr.Button()
-                    fconformer_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[input_files])
+                    whisper_btn_run = gr.Button()
+                    whisper_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[whisper_input_files])
 
                 with gr.Row():
                     # model selection dropdown
@@ -128,15 +128,15 @@ with gr.Blocks() as ui:
     with gr.Tab(label="Fastconformer"):
         with gr.Row():
             # # input field for audio / video file
-            input_files = gr.Files(label="Input Files")
+            fconformer_input_files = gr.Files(label="Input Files")
 
             def clear():
                 return None
 
             with gr.Column():
                 with gr.Row():
-                    whisper_btn_run = gr.Button()
-                    whisper_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[input_files])
+                    fconformer_btn_run = gr.Button()
+                    fconformer_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[fconformer_input_files])
 
                 with gr.Row():
                     # model selection dropdown
@@ -268,10 +268,14 @@ with gr.Blocks() as ui:
         output_text_field = gr.TextArea(label="Output (changes made wont be saved - files are also in the output folder)", value="", interactive=True)
         file_type.change(fill_output, inputs=[history_dropdown, file_type], outputs=output_text_field)
 
+
+    #########################################
+    ############Button Event Zone############
+    #########################################
     whisper_btn_run.click(
         whisper_process,
         inputs=[
-            input_files,
+            whisper_input_files,
             device,
             model,
             lang,
@@ -297,7 +301,39 @@ with gr.Blocks() as ui:
             no_speech_threshold,
             initial_prompt,
         ],
-        outputs=[input_files],
+        outputs=[whisper_input_files],
+    )
+
+    fconformer_btn_run.click(
+        fastconformer_process,
+        inputs=[
+            fconformer_input_files,
+            device,
+            model,
+            lang,
+            allign,
+            diarization,
+            batch_size,
+            output_format,
+            min_speakers,
+            max_speakers,
+            max_line_count,
+            max_line_width,
+            interpolate_method,
+            return_char_alignments,
+            vad_onset,
+            vad_offset,
+            compute_type,
+            beam_size,
+            patience,
+            length_penalty,
+            temperature,
+            compression_ratio_threshold,
+            logprob_threshold,
+            no_speech_threshold,
+            initial_prompt,
+        ],
+        outputs=[fconformer_input_files],
     )
 
 if __name__ == "__main__":
