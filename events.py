@@ -12,6 +12,7 @@ from custom_utils import get_writer
 
 
 hf_token="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"
+CONTAINER_ID="3f3ba2d022f6"
 
 
 
@@ -44,7 +45,6 @@ def fastconformer_process(
     progress=gr.Progress(track_tqdm=True),
 ):
     progress(0, desc="Loading models...")
-    import nemo.collections.asr as nemo_asr
 
     if files is None:
         raise gr.Error("Please upload a file to transcribe")
@@ -68,13 +68,27 @@ def fastconformer_process(
     gc.collect()
     torch.cuda.empty_cache()
 
+    ########################
+    #####docker zone #######
+    ########################
+
+    import docker
+    client = docker.from_env()
+    container = client.containers.get(CONTAINER_ID)
+
+    def post_processing(str):
+        import ast
+        result = ast.literal_eval(str)
+        return result
+
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
         audio = f'{file.name}'
-        #result = .transcribe([audio])
-        #results.append((result, file.name))
+        result = container.exec_run(f"python run_nemo.py {audio}", stderr=False)
+        result = post_processing(result.output.decode("utf-8"))
+        results.append((result[0][0], file.name))
 
-    del whisper_model
+    
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -86,10 +100,12 @@ def fastconformer_process(
 
         filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()
 
+        
+
         if not os.path.exists(os.getcwd() + "/output/" + filename_alpha_numeric):
             os.mkdir(os.getcwd() + "/output/" + filename_alpha_numeric)
         
-        with open(os.getcwd()+"/output/"+filename_alpha_numeric+'/'+audio_path, 'wt') as f:
+        with open(os.getcwd()+"/output/"+filename_alpha_numeric+'/'+os.path.splitext(os.path.basename(audio_path))[0]+'.txt', 'wt') as f:
             json.dump(res, f)
 
 
@@ -213,11 +229,10 @@ def whisper_process(
 
         filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()
 
-        if not os.path.exists(os.getcwd() + "/fastconformer_output/" + filename_alpha_numeric):
-            os.mkdir(os.getcwd() + "/fastconformer_output/" + filename_alpha_numeric)
 
-        if not os.path.exists(os.getcwd() + "/fastconformer_output/" + filename_alpha_numeric):
-            os.mkdir(os.getcwd() + "/fastconformer_output/" + filename_alpha_numeric)
 
-        writer = get_writer(output_format, os.getcwd() + "/fastconformer_output/" + filename_alpha_numeric)
+        if not os.path.exists(os.getcwd() + "/output/" + filename_alpha_numeric):
+            os.mkdir(os.getcwd() + "/output/" + filename_alpha_numeric)
+
+        writer = get_writer(output_format, os.getcwd() + "/output/" + filename_alpha_numeric)
         writer(res, audio_path, writer_args)
