@@ -6,6 +6,10 @@ import torch
 
 from events import whisper_process, fastconformer_process
 
+if not os.path.exists(os.getcwd() + "/output/"):
+    os.mkdir(os.getcwd() + "/output/")
+
+
 #########################################
 ############UI zone######################
 #########################################

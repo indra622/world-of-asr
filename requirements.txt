@@ -1,4 +1,4 @@
-git+https://github.com/m-bain/whisperx.git@v3.1.1
+git+https://github.com/m-bain/whisperx.git@2a11ce3ef07fc888924bf0bc4b080ede983cbe65
 #Cython
 #nemo_toolkit[all]
 docker==6.1.3

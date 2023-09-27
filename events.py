@@ -11,8 +11,8 @@ from custom_asr import load_model
 from custom_utils import get_writer
 
 
-hf_token="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"
-CONTAINER_ID="3f3ba2d022f6"
+hf_token="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"
+CONTAINER_ID="c28e2440e041"
 
 
 
@@ -171,9 +171,8 @@ def whisper_process(
         asr_options=asr_options,
         vad_options={"vad_onset": vad_onset, "vad_offset": vad_offset},
     )
-    print(type(files))
-    print(files)
     print(files[0].name)
+    print("lang!!!:"+lang)
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
         audio = whisperx.load_audio(file.name)
