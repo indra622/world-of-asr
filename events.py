@@ -98,7 +98,7 @@ def fastconformer_process(
 
     for res, audio_path in tqdm.tqdm(results, desc="Writing", position=0, leave=True, unit="files"):
 
-        filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()
+        filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()+"_fastconformer"
 
         
 
@@ -227,7 +227,7 @@ def whisper_process(
 
     for res, audio_path in tqdm.tqdm(results, desc="Writing", position=0, leave=True, unit="files"):
 
-        filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()
+        filename_alpha_numeric = "".join([c for c in os.path.basename(audio_path) if c.isalpha() or c.isdigit() or c == " "]).rstrip()+"_whisper"
 
 
 
