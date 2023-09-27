@@ -1,4 +1,4 @@
-# whisperx-play
+# World-of-ASR
 
 
 # Installation
