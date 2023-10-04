@@ -10,7 +10,7 @@ conda activate woa
 pip install -r requirements.txt
 ```
 ```
-$pip install git+https://github.com/m-bain/whisperx.git@v3.1.1
+pip install git+https://github.com/m-bain/whisperx.git@2a11ce3ef07fc888924bf0bc4b080ede983cbe65
 ```
 
 If you want to use Nvidia-NeMo,
