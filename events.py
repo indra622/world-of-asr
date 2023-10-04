@@ -9,7 +9,7 @@ import json
 
 from custom_asr import load_model
 from custom_utils import get_writer
-
+from custom_diarize import DiarizationPipeline, assign_word_speakers
 
 hf_token="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"
 CONTAINER_ID="c28e2440e041"
@@ -216,11 +216,15 @@ def whisper_process(
         else:
             tmp_res = results
             results = []
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
             for result, input_audio_path in tqdm.tqdm(tmp_res, desc="Diarizing", position=0, leave=True, unit="files"):
                 diarize_segments = diarize_model(input_audio_path, min_speakers=min_speakers, max_speakers=max_speakers)
-                result = whisperx.diarize.assign_word_speakers(diarize_segments, result)
+                result = assign_word_speakers(diarize_segments, result)
                 results.append((result, input_audio_path))
+
+        del diarize_model
+        gc.collect()
+        torch.cuda.empty_cache()
 
     writer_args = {"max_line_width": None if max_line_width == 0 else max_line_width, "max_line_count": None if max_line_count == 0 else max_line_count, "highlight_words": False}
 
