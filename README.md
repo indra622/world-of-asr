@@ -5,6 +5,7 @@
 
 
 ```
+sudo apt install ffmpeg
 conda create --name woa python=3.11
 conda activate woa
 git clone https://github.com/indra622/world-of-asr.git

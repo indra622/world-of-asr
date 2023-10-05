@@ -11,8 +11,8 @@ from custom_asr import load_model
 from custom_utils import get_writer
 from custom_diarize import DiarizationPipeline, assign_word_speakers
 
-hf_token="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"
-CONTAINER_ID="c28e2440e041"
+hf_token=str(os.environ['HF_TOKEN'])
+CONTAINER_ID=str(os.environ['CONTAINER_ID'])
 
 
 

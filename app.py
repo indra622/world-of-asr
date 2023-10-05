@@ -341,4 +341,5 @@ with gr.Blocks() as ui:
     )
 
 if __name__ == "__main__":
-    ui.queue(concurrency_count=10).launch(server_name="10.17.23.228")
+    server_name = str(os.environ["IP_ADDR"])
+    ui.queue(concurrency_count=10).launch(server_name=server_name)
