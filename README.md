@@ -11,19 +11,22 @@ conda activate woa
 git clone https://github.com/indra622/world-of-asr.git
 pip install -r requirements.txt
 ```
-```
-pip install git+https://github.com/m-bain/whisperx.git@2a11ce3ef07fc888924bf0bc4b080ede983cbe65
-```
 
 If you want to use Nvidia-NeMo,
 ```
 cd docker
 docker build -t woa:v1.0 .
-docker run -d --gpus 0 -it -v /tmp/gradio:/tmp/gradio woa:v1.0 tail -f /dev/null
+docker run -d --gpus 0 -it --name nvidia-nemo -v /tmp/gradio:/tmp/gradio woa:v1.0 tail -f /dev/null
 
 ```
-and copy&paste your container id into CONTAINER_ID in events.py 
+and define some environment variables in your .bashrc
 
+```
+# in your .bashrc,
+export IP_ADDR=$(hostname -i)
+export CONTAINER_ID=$(docker ps -q -f name=nvidia-nemo)
+export HF_TOKEN="[YOUR_HF_TOKEN]"
+```
 # Running
 
 ```
