@@ -4,3 +4,4 @@ git+https://github.com/m-bain/whisperx.git@2a11ce3ef07fc888924bf0bc4b080ede983cb
 docker==6.1.3
 gradio==3.45.1
 ffmpeg-python
+
