@@ -27,6 +27,20 @@ export IP_ADDR=$(hostname -i)
 export CONTAINER_ID=$(docker ps -q -f name=nvidia-nemo)
 export HF_TOKEN="[YOUR_HF_TOKEN]"
 ```
+
+
+## Streaming
+
+
+It is from [ufal/whisper_streaming](https://github.com/ufal/whisper_streaming)
+
+```
+pip install -r requirements-streamiing.txt
+
+cd streaming && python whisper_online_server.py
+```
+
+
 # Running
 
 ```
