@@ -8,7 +8,7 @@ import json
 
 
 from custom_asr import load_model
-from custom_utils import get_writer
+from custom_utils import get_writer, format_output_largev3
 from custom_diarize import DiarizationPipeline, assign_word_speakers
 
 hf_token=str(os.environ['HF_TOKEN'])
@@ -156,20 +156,34 @@ def whisper_process(
     tmp_results = []
     gc.collect()
     torch.cuda.empty_cache()
-    whisper_model = load_model(
-        model,
-        device=device,
-        compute_type=compute_type,
-        language=None if lang == "" else lang,
-        asr_options=asr_options,
-        vad_options={"vad_onset": vad_onset, "vad_offset": vad_offset},
-    )
+    print("MODEL:"+str(model))
+    if model == "large-v3":
+        from faster_whisper import WhisperModel
+
+        whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
+    else:
+    
+        whisper_model = load_model(
+            model,
+            device=device,
+            compute_type=compute_type,
+            language=None if lang == "" else lang,
+            asr_options=asr_options,
+            vad_options={"vad_onset": vad_onset, "vad_offset": vad_offset},
+        )
     print(files[0].name)
     print("lang!!!:"+lang)
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
-        audio = whisperx.load_audio(file.name)
-        result = whisper_model.transcribe(audio, batch_size=batch_size)
+        if model == "large-v3":
+            allign=False
+            
+            segs,info = whisper_model.transcribe(file.name, language=None if lang == "" else lang, word_timestamps=True)
+            result = format_output_largev3(segs)
+
+        else:
+            audio = whisperx.load_audio(file.name)
+            result = whisper_model.transcribe(audio, batch_size=batch_size, )
         results.append((result, file.name))
 
     del whisper_model
@@ -202,6 +216,7 @@ def whisper_process(
         del align_model
         gc.collect()
         torch.cuda.empty_cache()
+        print(results)
 
     if diarization:
         if hf_token is None:
@@ -209,7 +224,7 @@ def whisper_process(
         else:
             tmp_res = results
             results = []
-            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
+            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device='cpu')
             for result, input_audio_path in tqdm.tqdm(tmp_res, desc="Diarizing", position=0, leave=True, unit="files"):
                 diarize_segments = diarize_model(input_audio_path, min_speakers=min_speakers, max_speakers=max_speakers)
                 result = assign_word_speakers(diarize_segments, result)

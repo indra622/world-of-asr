@@ -400,3 +400,27 @@ def interpolate_nans(x, method='nearest'):
         return x.interpolate(method=method).ffill().bfill()
     else:
         return x.ffill().bfill()
+    
+
+def create_word_details(words):
+    return [
+        {'word': word.word, 'start':word.start, 'end': word.end, 'score': word.probability}
+        for word in words
+    ]
+
+def format_output_largev3(segments):
+    
+    output = {
+        'segments': [
+            {
+                'start': segment.start,
+                'end': segment.end,
+                'text': segment.text,
+                'words': create_word_details(segment.words)
+            }
+            for segment in segments
+        ],
+    }
+
+    return output
+        

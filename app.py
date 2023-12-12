@@ -16,6 +16,119 @@ if not os.path.exists(os.getcwd() + "/output/"):
 
 
 with gr.Blocks() as ui:
+    with gr.Tab(label="WhisperX"):
+        with gr.Row():
+            # # input field for audio / video file
+            whisper_input_files = gr.Files(label="Input Files")
+
+            def clear():
+                return None
+
+            with gr.Column():
+                with gr.Row():
+                    whisper_btn_run = gr.Button()
+                    whisper_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[whisper_input_files])
+
+                with gr.Row():
+                    # model selection dropdown
+                    model = gr.Dropdown(label="Model", choices=["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"], value="large-v3")
+                    # langaue hint input
+                    lang = gr.Text(label="Language Hint", placeholder="ko")
+
+                with gr.Row():
+                    with gr.Group():
+                        allign = gr.Checkbox(label="Allign Text", value=True)
+                        max_line_width = gr.Slider(label="Max Line Width (0 for default)", minimum=0, step=1, maximum=10000, value=0)
+                        max_line_count = gr.Slider(label="Max number of lines in a segment (0 for default)", minimum=0, step=1, maximum=10000, value=0, visible=False)
+
+                        def change_interactive1(max_line_width, max_line_count, val):
+                            return [
+                                gr.Number.update(visible=val, value=0 if not val else max_line_width),
+                                gr.Number.update(visible=not val, value=0 if val else max_line_count),
+                            ]
+
+                        allign.change(fn=change_interactive1, inputs=[max_line_width, max_line_count, allign], outputs=[max_line_width, max_line_count])
+                        diarization = gr.Checkbox(label="Speaker Diarization", value=True)
+                        with gr.Row():
+                            min_speakers = gr.Slider(label="Min Speakers", minimum=1, maximum=20, step=1, value=1, visible=True)
+                            max_speakers = gr.Slider(label="Max Speakers", minimum=1, maximum=20, step=1, value=5, visible=True)
+
+                            # enable min and max speakers if diarization is enabled
+                            def change_interactive2(min, max, val):
+                                return [
+                                    gr.Number.update(visible=val),
+                                    gr.Number.update(visible=val),
+                                ]
+
+                            diarization.change(fn=change_interactive2, inputs=[min_speakers, max_speakers, diarization], outputs=[min_speakers, max_speakers])
+
+                    with gr.Group():
+                        # device add cuda to dropdown if available
+                        device = gr.Dropdown(
+                            label="Device", choices=["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"], value="cuda" if torch.cuda.is_available() else "cpu"
+                        )
+                        batch_size = gr.Slider(label="Batch Size", min_value=1, maximum=100, step=1, value=8, interactive=True)
+                        compute_type = gr.Dropdown(label="Compute Type", choices=["int8", "float32", "float16"], value="float16")
+
+                with gr.Group():
+                    advanced = gr.Checkbox(label="Advanced Options", value=False)
+
+                    def change_visible1(advanced):
+                        return [
+                            gr.Dropdown.update(visible=advanced),
+                            gr.Checkbox.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Textbox.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                        ]
+
+                    with gr.Row():
+                        interpolate_method = gr.Dropdown(label="Interpolate Method", choices=["nearest", "linear", "ignore"], value="nearest", visible=False)
+                        return_char_alignments = gr.Checkbox(label="Return Char Alignments", value=False, visible=False)
+                    with gr.Row():
+                        beam_size = gr.Slider(label="Beam Size (only when temperature is 0)", minimum=1, maximum=100, step=1, value=5, visible=False)
+                        patience = gr.Slider(label="Patience (0 default)", minimum=0, maximum=100, step=0.01, value=0, visible=False)
+                    with gr.Row():
+                        length_penalty = gr.Slider(label="Length Penalty (0 default)", minimum=0, maximum=100, step=0.01, value=0, visible=False)
+                        temperature = gr.Slider(label="Temperature", minimum=0, maximum=100, step=0.01, value=0, visible=False)
+                    with gr.Row():
+                        compression_ratio_threshold = gr.Slider(label="Compression Ratio Threshold", minimum=0, maximum=100, step=0.01, value=2.4, visible=False)
+                        logprob_threshold = gr.Slider(label="Logprob Threshold", minimum=-10, maximum=10, step=0.01, value=-1, visible=False)
+                    with gr.Row():
+                        no_speech_threshold = gr.Slider(label="No Speech Threshold", minimum=0, maximum=1, step=0.001, value=0.6, visible=False)
+                        initial_prompt = gr.Textbox(label="Initial Prompt", placeholder="Enter initial prompt", visible=False)
+                    with gr.Row():
+                        vad_onset = gr.Slider(label="VAD Onset Threshold", minimum=0, maximum=1, step=0.0001, value=0.5, visible=False)
+                        vad_offset = gr.Slider(label="VAD Offset Threshold", minimum=0, maximum=1, step=0.0001, value=0.363, visible=False)
+                        advanced.change(
+                            fn=change_visible1,
+                            inputs=[advanced],
+                            outputs=[
+                                interpolate_method,
+                                return_char_alignments,
+                                beam_size,
+                                patience,
+                                length_penalty,
+                                temperature,
+                                compression_ratio_threshold,
+                                logprob_threshold,
+                                no_speech_threshold,
+                                initial_prompt,
+                                vad_onset,
+                                vad_offset,
+                            ],
+                        )
+
+                # output format
+                output_format = gr.Dropdown(label="Output Format", choices=["all", "json", "txt", "srt", "vtt", "tsv"], value="vtt")    
+    
     with gr.Tab(label="Whisper"):
         with gr.Row():
             # # input field for audio / video file
@@ -128,118 +241,7 @@ with gr.Blocks() as ui:
 
                 # output format
                 origin_output_format = gr.Dropdown(label="Output Format", choices=["all", "json", "txt", "srt", "vtt", "tsv"], value="vtt")
-    with gr.Tab(label="WhisperX"):
-        with gr.Row():
-            # # input field for audio / video file
-            whisper_input_files = gr.Files(label="Input Files")
 
-            def clear():
-                return None
-
-            with gr.Column():
-                with gr.Row():
-                    whisper_btn_run = gr.Button()
-                    whisper_btn_reset = gr.Button(value="Reset").click(fn=clear, outputs=[whisper_input_files])
-
-                with gr.Row():
-                    # model selection dropdown
-                    model = gr.Dropdown(label="Model", choices=["tiny", "base", "small", "medium", "large", "large-v2"], value="large-v2")
-                    # langaue hint input
-                    lang = gr.Text(label="Language Hint", placeholder="ko")
-
-                with gr.Row():
-                    with gr.Group():
-                        allign = gr.Checkbox(label="Allign Text", value=True)
-                        max_line_width = gr.Slider(label="Max Line Width (0 for default)", minimum=0, step=1, maximum=10000, value=0)
-                        max_line_count = gr.Slider(label="Max number of lines in a segment (0 for default)", minimum=0, step=1, maximum=10000, value=0, visible=False)
-
-                        def change_interactive1(max_line_width, max_line_count, val):
-                            return [
-                                gr.Number.update(visible=val, value=0 if not val else max_line_width),
-                                gr.Number.update(visible=not val, value=0 if val else max_line_count),
-                            ]
-
-                        allign.change(fn=change_interactive1, inputs=[max_line_width, max_line_count, allign], outputs=[max_line_width, max_line_count])
-                        diarization = gr.Checkbox(label="Speaker Diarization", value=True)
-                        with gr.Row():
-                            min_speakers = gr.Slider(label="Min Speakers", minimum=1, maximum=20, step=1, value=1, visible=True)
-                            max_speakers = gr.Slider(label="Max Speakers", minimum=1, maximum=20, step=1, value=5, visible=True)
-
-                            # enable min and max speakers if diarization is enabled
-                            def change_interactive2(min, max, val):
-                                return [
-                                    gr.Number.update(visible=val),
-                                    gr.Number.update(visible=val),
-                                ]
-
-                            diarization.change(fn=change_interactive2, inputs=[min_speakers, max_speakers, diarization], outputs=[min_speakers, max_speakers])
-
-                    with gr.Group():
-                        # device add cuda to dropdown if available
-                        device = gr.Dropdown(
-                            label="Device", choices=["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"], value="cuda" if torch.cuda.is_available() else "cpu"
-                        )
-                        batch_size = gr.Slider(label="Batch Size", min_value=1, maximum=100, step=1, value=8, interactive=True)
-                        compute_type = gr.Dropdown(label="Compute Type", choices=["int8", "float32", "float16"], value="float16")
-
-                with gr.Group():
-                    advanced = gr.Checkbox(label="Advanced Options", value=False)
-
-                    def change_visible1(advanced):
-                        return [
-                            gr.Dropdown.update(visible=advanced),
-                            gr.Checkbox.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Textbox.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                        ]
-
-                    with gr.Row():
-                        interpolate_method = gr.Dropdown(label="Interpolate Method", choices=["nearest", "linear", "ignore"], value="nearest", visible=False)
-                        return_char_alignments = gr.Checkbox(label="Return Char Alignments", value=False, visible=False)
-                    with gr.Row():
-                        beam_size = gr.Slider(label="Beam Size (only when temperature is 0)", minimum=1, maximum=100, step=1, value=5, visible=False)
-                        patience = gr.Slider(label="Patience (0 default)", minimum=0, maximum=100, step=0.01, value=0, visible=False)
-                    with gr.Row():
-                        length_penalty = gr.Slider(label="Length Penalty (0 default)", minimum=0, maximum=100, step=0.01, value=0, visible=False)
-                        temperature = gr.Slider(label="Temperature", minimum=0, maximum=100, step=0.01, value=0, visible=False)
-                    with gr.Row():
-                        compression_ratio_threshold = gr.Slider(label="Compression Ratio Threshold", minimum=0, maximum=100, step=0.01, value=2.4, visible=False)
-                        logprob_threshold = gr.Slider(label="Logprob Threshold", minimum=-10, maximum=10, step=0.01, value=-1, visible=False)
-                    with gr.Row():
-                        no_speech_threshold = gr.Slider(label="No Speech Threshold", minimum=0, maximum=1, step=0.001, value=0.6, visible=False)
-                        initial_prompt = gr.Textbox(label="Initial Prompt", placeholder="Enter initial prompt", visible=False)
-                    with gr.Row():
-                        vad_onset = gr.Slider(label="VAD Onset Threshold", minimum=0, maximum=1, step=0.0001, value=0.5, visible=False)
-                        vad_offset = gr.Slider(label="VAD Offset Threshold", minimum=0, maximum=1, step=0.0001, value=0.363, visible=False)
-                        advanced.change(
-                            fn=change_visible1,
-                            inputs=[advanced],
-                            outputs=[
-                                interpolate_method,
-                                return_char_alignments,
-                                beam_size,
-                                patience,
-                                length_penalty,
-                                temperature,
-                                compression_ratio_threshold,
-                                logprob_threshold,
-                                no_speech_threshold,
-                                initial_prompt,
-                                vad_onset,
-                                vad_offset,
-                            ],
-                        )
-
-                # output format
-                output_format = gr.Dropdown(label="Output Format", choices=["all", "json", "txt", "srt", "vtt", "tsv"], value="vtt")
     
     with gr.Tab(label="Fastconformer"):
         with gr.Row():
@@ -418,8 +420,9 @@ with gr.Blocks() as ui:
             origin_no_speech_threshold,
             origin_initial_prompt,
         ],
-        outputs=[whisper_input_files],
+        outputs=[origin_whisper_input_files],
     )
+
     whisper_btn_run.click(
         whisper_process,
         inputs=[
