@@ -57,29 +57,28 @@ with gr.Blocks() as ui:
                         origin_device = gr.Dropdown(
                             label="Device", choices=["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"], value="cuda" if torch.cuda.is_available() else "cpu"
                         )
-
+                        condition_on_previous_text = gr.Checkbox(label="Condition on Previous Text", value=False)
+                        remove_punctuation_from_words = gr.Checkbox(label="Remove Punctuation", value=False)
+                with gr.Group():
+                    origin_initial_prompt = gr.Textbox(label="Initial Prompt", placeholder="Enter initial prompt", visible=True)
                 with gr.Group():
                     origin_advanced = gr.Checkbox(label="Advanced Options", value=False)
 
                     def change_visible1(advanced):
                         return [
-                            gr.Dropdown.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
+                            gr.Slider.update(visible=advanced),
                             gr.Checkbox.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Textbox.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
-                            gr.Slider.update(visible=advanced),
                         ]
 
                     with gr.Row():
-                        origin_interpolate_method = gr.Dropdown(label="Interpolate Method", choices=["nearest", "linear", "ignore"], value="nearest", visible=False)
-                        origin_return_char_alignments = gr.Checkbox(label="Return Char Alignments", value=False, visible=False)
+                        remove_empty_words = gr.Checkbox(label="Remove Empty Words", value=False, visible=False)
+                        origin_no_speech_threshold = gr.Slider(label="No Speech Threshold", minimum=0, maximum=1, step=0.001, value=0.6, visible=False)
                     with gr.Row():
                         origin_beam_size = gr.Slider(label="Beam Size (only when temperature is 0)", minimum=1, maximum=100, step=1, value=5, visible=False)
                         origin_patience = gr.Slider(label="Patience (0 default)", minimum=0, maximum=100, step=0.01, value=0, visible=False)
@@ -89,18 +88,11 @@ with gr.Blocks() as ui:
                     with gr.Row():
                         origin_compression_ratio_threshold = gr.Slider(label="Compression Ratio Threshold", minimum=0, maximum=100, step=0.01, value=2.4, visible=False)
                         origin_logprob_threshold = gr.Slider(label="Logprob Threshold", minimum=-10, maximum=10, step=0.01, value=-1, visible=False)
-                    with gr.Row():
-                        origin_no_speech_threshold = gr.Slider(label="No Speech Threshold", minimum=0, maximum=1, step=0.001, value=0.6, visible=False)
-                        origin_initial_prompt = gr.Textbox(label="Initial Prompt", placeholder="Enter initial prompt", visible=False)
-                    with gr.Row():
-                        origin_vad_onset = gr.Slider(label="VAD Onset Threshold", minimum=0, maximum=1, step=0.0001, value=0.5, visible=False)
-                        origin_vad_offset = gr.Slider(label="VAD Offset Threshold", minimum=0, maximum=1, step=0.0001, value=0.363, visible=False)
+                      
                         origin_advanced.change(
                             fn=change_visible1,
                             inputs=[origin_advanced],
                             outputs=[
-                                origin_interpolate_method,
-                                origin_return_char_alignments,
                                 origin_beam_size,
                                 origin_patience,
                                 origin_length_penalty,
@@ -108,9 +100,7 @@ with gr.Blocks() as ui:
                                 origin_compression_ratio_threshold,
                                 origin_logprob_threshold,
                                 origin_no_speech_threshold,
-                                origin_initial_prompt,
-                                origin_vad_onset,
-                                origin_vad_offset,
+                                remove_empty_words,
                             ],
                         )
 
@@ -386,14 +376,9 @@ with gr.Blocks() as ui:
             origin_model,
             origin_lang,
             origin_diarization,
-            origin_batch_size,
             origin_output_format,
             origin_min_speakers,
             origin_max_speakers,
-            origin_interpolate_method,
-            origin_return_char_alignments,
-            origin_vad_onset,
-            origin_vad_offset,
             origin_beam_size,
             origin_patience,
             origin_length_penalty,
@@ -402,6 +387,9 @@ with gr.Blocks() as ui:
             origin_logprob_threshold,
             origin_no_speech_threshold,
             origin_initial_prompt,
+            condition_on_previous_text,
+            remove_punctuation_from_words,
+            remove_empty_words,
         ],
         outputs=[origin_whisper_input_files],
     )

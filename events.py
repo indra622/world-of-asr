@@ -19,14 +19,9 @@ def origin_whisper_process(
     model,
     lang,
     diarization,
-    batch_size,
     output_format,
     min_speakers,
     max_speakers,
-    interpolate_method,
-    return_char_alignments,
-    vad_onset,
-    vad_offset,
     beam_size,
     patience,
     length_penalty,
@@ -35,6 +30,9 @@ def origin_whisper_process(
     logprob_threshold,
     no_speech_threshold,
     initial_prompt,
+    condition_on_previous_text,
+    remove_punctuation_from_words,
+    remove_empty_words,
     progress=gr.Progress(track_tqdm=True),
 ):
     progress(0, desc="Loading models...")
@@ -42,20 +40,6 @@ def origin_whisper_process(
 
     if files is None:
         raise gr.Error("Please upload a file to transcribe")
-
-    asr_options = {
-        "beam_size": beam_size,
-        "patience": None if patience == 0 else patience,
-        "length_penalty": None if length_penalty == 0 else length_penalty,
-        "temperatures": temperature,
-        "compression_ratio_threshold": compression_ratio_threshold,
-        "log_prob_threshold": logprob_threshold,
-        "no_speech_threshold": no_speech_threshold,
-        "condition_on_previous_text": False,
-        "initial_prompt": None if initial_prompt == "" else initial_prompt,
-        "suppress_tokens": [-1],
-        "suppress_numerals": True,
-    }
 
     results = []
     tmp_results = []
@@ -65,7 +49,14 @@ def origin_whisper_process(
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
         audio = whisper.load_audio(file.name)
-        result = whisper.transcribe(whisper_model, audio, beam_size=5, language=None if lang == "" else lang, vad='auditok')
+        result = whisper.transcribe(whisper_model, audio, beam_size=beam_size, 
+                                    language=None if lang == "" else lang, vad='auditok', 
+                                    temperature=temperature, condition_on_previous_text=condition_on_previous_text,
+                                    initial_prompt=initial_prompt, length_penalty=length_penalty, patience=patience,
+                                    compression_ratio_threshold=compression_ratio_threshold, logprob_threshold=logprob_threshold,
+                                    no_speech_threshold=no_speech_threshold, remove_punctuation_from_words=remove_punctuation_from_words,
+                                    remove_empty_words=remove_empty_words, 
+                                    )
         results.append((result, file.name))
 
     del whisper_model
