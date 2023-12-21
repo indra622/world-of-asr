@@ -416,7 +416,7 @@ def format_output_largev3(segments):
                 'start': segment.start,
                 'end': segment.end,
                 'text': segment.text,
-                'words': create_word_details(segment.words)
+                
             }
             for segment in segments
         ],

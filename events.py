@@ -9,7 +9,7 @@ import json
 
 from custom_asr import load_model
 from custom_utils import get_writer, format_output_largev3
-from custom_diarize import DiarizationPipeline, assign_word_speakers
+from custom_diarize_legacy import DiarizationPipeline, assign_word_speakers
 
 hf_token=str(os.environ['HF_TOKEN'])
 CONTAINER_ID=str(os.environ['CONTAINER_ID'])
@@ -44,7 +44,7 @@ def origin_whisper_process(
     progress=gr.Progress(track_tqdm=True),
 ):
     progress(0, desc="Loading models...")
-    import whisper
+    import whisper_timestamped as whisper
 
     if files is None:
         raise gr.Error("Please upload a file to transcribe")
@@ -71,7 +71,7 @@ def origin_whisper_process(
         model,
         device=device,
         compute_type=compute_type,
-        language=None if lang == "" else lang,
+        
         asr_options=asr_options,
         vad_options={"vad_onset": vad_onset, "vad_offset": vad_offset},
     )
@@ -79,12 +79,63 @@ def origin_whisper_process(
     #print("lang!!!:"+lang)
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
-        #audio = whisper.load_audio(file.name)
+        audio = whisper.load_audio(file.name)
         #audio = whisper.pad_or_trim(audio)
-        result = whisper_model.transcribe(file.name, batch_size=batch_size)
+        result = whisper.transcribe(whisper_model, audio, batch_size=batch_size, beam_size=5, language=None if lang == "" else lang, vad='auditok')
         results.append((result, file.name))
 
     del whisper_model
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    if diarization:
+        from custom_diarize import WeSpeakerResNet34
+        import librosa
+        import json
+        from custom_diarize import AgglomerativeClustering
+        import numpy as np
+
+        embedding_model = WeSpeakerResNet34.load_from_checkpoint('wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
+        embedding_model.eval()
+        embedding_model.to('cpu')
+
+        audio, sr = librosa.load(file.name, sr=16000, mono=True)
+        
+        tmp_results = results
+        results = []
+        for result in tmp_results:
+            embeddings = []
+            for transcript in result[0]["segments"]:
+                start, end = transcript["start"], transcript["end"]
+                audio_segment = audio[int(start * sr):int(end * sr)]
+                audio_segment = torch.Tensor(audio_segment).reshape(1, 1, -1)
+                embedding = embedding_model(audio_segment)
+                embeddings.append(embedding.detach().numpy())
+        
+            cluster_model = AgglomerativeClustering()
+            cluster_model.set_num_clusters(embedding.shape[0], min_clusters=min_speakers, max_clusters=max_speakers)
+            clusters = cluster_model.cluster(np.vstack(embeddings))
+            clusters = list(clusters)
+
+            if len(result[0]['segments']) != len(clusters):
+                print("Error: number of segments and number of clusters do not match")
+
+            output = {
+                'segments': [
+                    {
+                        'start': segment['start'],
+                        'end': segment['end'],
+                        'text': segment['text'],
+                        'speaker': f"발언자_{clusters.pop(0)}",
+                        
+                    }
+                    for segment in result[0]['segments']
+                ],
+            }
+
+            results.append((output, file.name))
+
+    del embedding_model
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -178,7 +229,7 @@ def whisper_process(
         if model == "large-v3":
             allign=False
             
-            segs,info = whisper_model.transcribe(file.name, language=None if lang == "" else lang, word_timestamps=True)
+            segs,info = whisper_model.transcribe(file.name, language=None if lang == "" else lang)
             result = format_output_largev3(segs)
 
         else:
@@ -190,47 +241,57 @@ def whisper_process(
     gc.collect()
     torch.cuda.empty_cache()
 
-    # load whisperx model
-    if allign:
-        tmp_results = results
-
-        if lang == "":
-            lang = "en"
-
-        results = []
-        align_model, align_metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H" if lang == "en" else None, language_code=lang, device=device)
-
-        for result, audio_path in tqdm.tqdm(tmp_results, desc="Alligning", position=0, leave=True, unit="files"):
-            input_audio = audio_path
-
-            if align_model is not None and len(result["segments"]) > 0:
-                if result.get("language") != align_metadata["language"]:
-                    # load new model
-                    print(f"Loading new model for {result['language']}")
-                    align_model, align_metadata = whisperx.load_align_model(result["language"], device=device)
-                result = whisperx.align(
-                    result["segments"], align_model, align_metadata, input_audio, device, interpolate_method=interpolate_method, return_char_alignments=return_char_alignments
-                )
-            results.append((result, audio_path))
-
-        del align_model
-        gc.collect()
-        torch.cuda.empty_cache()
-        print(results)
-
     if diarization:
         if hf_token is None:
             print("Please provide a huggingface token to use speaker diarization")
         else:
-            tmp_res = results
-            results = []
-            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device='cpu')
-            for result, input_audio_path in tqdm.tqdm(tmp_res, desc="Diarizing", position=0, leave=True, unit="files"):
-                diarize_segments = diarize_model(input_audio_path, min_speakers=min_speakers, max_speakers=max_speakers)
-                result = assign_word_speakers(diarize_segments, result)
-                results.append((result, input_audio_path))
+            from custom_diarize import WeSpeakerResNet34
+            import librosa
+            import json
+            from custom_diarize import AgglomerativeClustering
+            import numpy as np
 
-        del diarize_model
+            embedding_model = WeSpeakerResNet34.load_from_checkpoint('wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
+            embedding_model.eval()
+            embedding_model.to('cpu')
+
+            audio, sr = librosa.load(file.name, sr=16000, mono=True)
+            
+            tmp_results = results
+            results = []
+            for result in tmp_results:
+                embeddings = []
+                for transcript in result[0]["segments"]:
+                    start, end = transcript["start"], transcript["end"]
+                    audio_segment = audio[int(start * sr):int(end * sr)]
+                    audio_segment = torch.Tensor(audio_segment).reshape(1, 1, -1)
+                    embedding = embedding_model(audio_segment)
+                    embeddings.append(embedding.detach().numpy())
+            
+                cluster_model = AgglomerativeClustering()
+                cluster_model.set_num_clusters(embedding.shape[0], min_clusters=min_speakers, max_clusters=max_speakers)
+                clusters = cluster_model.cluster(np.vstack(embeddings))
+                clusters = list(clusters)
+
+                if len(result[0]['segments']) != len(clusters):
+                    print("Error: number of segments and number of clusters do not match")
+
+                output = {
+                    'segments': [
+                        {
+                            'start': segment['start'],
+                            'end': segment['end'],
+                            'text': segment['text'],
+                            'speaker': f"발언자_{clusters.pop(0)}",
+                            
+                        }
+                        for segment in result[0]['segments']
+                    ],
+                }
+
+                results.append((output, file.name))
+
+        del embedding_model
         gc.collect()
         torch.cuda.empty_cache()
 
