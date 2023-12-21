@@ -1,6 +1,4 @@
 -r requirements.txt
-git+https://github.com/linto-ai/whisper-timestamped
-openai-whisper
 wtpsplit
 pyaudio
 dotenv
