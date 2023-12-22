@@ -6,7 +6,7 @@ import tqdm
 import os
 import json
 
-from custom_utils import get_writer, format_output_largev3
+from woa.utils import get_writer, format_output_largev3
 
 hf_token=str(os.environ['HF_TOKEN'])
 CONTAINER_ID=str(os.environ['CONTAINER_ID'])
@@ -63,7 +63,7 @@ def origin_whisper_process(
     torch.cuda.empty_cache()
 
     if diarization:
-        from custom_diarize import diarization_process
+        from woa.diarize import diarization_process
         tmp_results = results
         results = []
         result = diarization_process(file.name, tmp_results, min_speakers, max_speakers)
@@ -144,7 +144,7 @@ def whisper_process(
     torch.cuda.empty_cache()
 
     if diarization:
-        from custom_diarize import diarization_process
+        from woa.diarize import diarization_process
         tmp_results = results
         results = []
         result = diarization_process(file.name, tmp_results, min_speakers, max_speakers)

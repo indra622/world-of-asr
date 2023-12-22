@@ -370,12 +370,12 @@ class AgglomerativeClustering():
 
 
 def diarization_process(filename, results, min_speakers=2, max_speakers=15):
-    from custom_diarize import WeSpeakerResNet34
+    from woa.diarize import WeSpeakerResNet34
     import librosa
-    from custom_diarize import AgglomerativeClustering
+    from woa.diarize import AgglomerativeClustering
     import numpy as np
 
-    embedding_model = WeSpeakerResNet34.load_from_checkpoint('wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
+    embedding_model = WeSpeakerResNet34.load_from_checkpoint('woa/wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
     embedding_model.eval()
     embedding_model.to('cpu')
 

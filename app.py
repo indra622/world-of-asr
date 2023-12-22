@@ -4,7 +4,7 @@ import gradio as gr
 import os
 import torch
 
-from events import origin_whisper_process, whisper_process, fastconformer_process
+from woa.events import origin_whisper_process, whisper_process, fastconformer_process
 
 if not os.path.exists(os.getcwd() + "/output/"):
     os.mkdir(os.getcwd() + "/output/")
