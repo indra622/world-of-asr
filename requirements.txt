@@ -1,5 +1,5 @@
-git+https://github.com/m-bain/whisperx.git
 whisper-timestamped
+librosa
 docker==6.1.3
 gradio==3.45.1
 ffmpeg-python
