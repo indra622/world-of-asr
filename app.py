@@ -16,8 +16,6 @@ if not os.path.exists(os.getcwd() + "/output/"):
 
 
 with gr.Blocks() as ui:
-
-    
     with gr.Tab(label="Whisper"):
         with gr.Row():
             # # input field for audio / video file
@@ -107,7 +105,7 @@ with gr.Blocks() as ui:
                 # output format
                 origin_output_format = gr.Dropdown(label="Output Format", choices=["all", "json", "txt", "srt", "vtt", "tsv"], value="vtt")
 
-    with gr.Tab(label="WhisperX"):
+    with gr.Tab(label="FasterWhisper"):
         with gr.Row():
             # # input field for audio / video file
             whisper_input_files = gr.Files(label="Input Files")

@@ -367,3 +367,52 @@ class AgglomerativeClustering():
             
         _, clusters = np.unique(clusters, return_inverse=True)
         return clusters
+
+
+def diarization_process(filename, results, min_speakers=2, max_speakers=15):
+    from custom_diarize import WeSpeakerResNet34
+    import librosa
+    from custom_diarize import AgglomerativeClustering
+    import numpy as np
+
+    embedding_model = WeSpeakerResNet34.load_from_checkpoint('wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
+    embedding_model.eval()
+    embedding_model.to('cpu')
+
+    audio, sr = librosa.load(filename, sr=16000, mono=True)
+
+    tmp_results = results
+    results = []
+    for result in tmp_results:
+        embeddings = []
+        for transcript in result[0]["segments"]:
+            start, end = transcript["start"], transcript["end"]
+            audio_segment = audio[int(start * sr):int(end * sr)]
+            audio_segment = torch.Tensor(audio_segment).reshape(1, 1, -1)
+            embedding = embedding_model(audio_segment)
+            embeddings.append(embedding.detach().numpy())
+    
+        cluster_model = AgglomerativeClustering()
+        cluster_model.set_num_clusters(embedding.shape[0], min_clusters=min_speakers, max_clusters=max_speakers)
+        clusters = cluster_model.cluster(np.vstack(embeddings))
+        clusters = list(clusters)
+
+        if len(result[0]['segments']) != len(clusters):
+            print("Error: number of segments and number of clusters do not match")
+
+        output = {
+            'segments': [
+                {
+                    'start': segment['start'],
+                    'end': segment['end'],
+                    'text': segment['text'],
+                    'speaker': f"발언자_{clusters.pop(0)}",
+                    
+                }
+                for segment in result[0]['segments']
+            ],
+        }
+
+    del embedding_model
+    
+    return output
