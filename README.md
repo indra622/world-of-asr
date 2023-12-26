@@ -48,3 +48,6 @@ python app.py
 ```
 
 
+# ETC
+
+NVIDIA Triton serving : [Triton-ASR](https://github.com/shs131566/triton-asr)
