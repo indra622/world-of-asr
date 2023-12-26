@@ -374,8 +374,11 @@ def diarization_process(filename, results, min_speakers=2, max_speakers=15):
     import librosa
     from woa.diarize import AgglomerativeClustering
     import numpy as np
+    from huggingface_hub import hf_hub_download
 
-    embedding_model = WeSpeakerResNet34.load_from_checkpoint('woa/wespeaker-voxceleb-resnet34-LM.bin', strict=False, map_location='cpu')
+    wespeaker = hf_hub_download(repo_id="pyannote/wespeaker-voxceleb-resnet34-LM", filename="pytorch_model.bin")
+    
+    embedding_model = WeSpeakerResNet34.load_from_checkpoint(wespeaker, strict=False, map_location='cpu')
     embedding_model.eval()
     embedding_model.to('cpu')
 
