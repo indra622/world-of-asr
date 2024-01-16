@@ -4,3 +4,7 @@ docker==6.1.3
 gradio==3.45.1
 ffmpeg-python
 auditok
+lightning
+torchaudio
+einops
+pyannote.audio

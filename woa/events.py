@@ -9,8 +9,6 @@ import json
 from woa.utils import get_writer, format_output_largev3
 
 hf_token=str(os.environ['HF_TOKEN'])
-CONTAINER_ID=str(os.environ['CONTAINER_ID'])
-
 
 def origin_whisper_process(
     files,
@@ -66,7 +64,7 @@ def origin_whisper_process(
         from woa.diarize import diarization_process
         tmp_results = results
         results = []
-        result = diarization_process(file.name, tmp_results, min_speakers, max_speakers)
+        result = diarization_process(file.name, tmp_results, hf_token, min_speakers, max_speakers)
         results.append((result, file.name))
 
     writer_args = {"max_line_width": None, "max_line_count": None, "highlight_words": False}
@@ -216,7 +214,9 @@ def fastconformer_process(
     ########################
     #####docker zone #######
     ########################
-
+    if os.environ.get('CONTAINER_ID'):
+        CONTAINER_ID=str(os.environ['CONTAINER_ID'])
+    
     import docker
     client = docker.from_env()
     container = client.containers.get(CONTAINER_ID)

@@ -369,14 +369,14 @@ class AgglomerativeClustering():
         return clusters
 
 
-def diarization_process(filename, results, min_speakers=2, max_speakers=15):
+def diarization_process(filename, results, token, min_speakers=2, max_speakers=15):
     from woa.diarize import WeSpeakerResNet34
     import librosa
     from woa.diarize import AgglomerativeClustering
     import numpy as np
     from huggingface_hub import hf_hub_download
 
-    wespeaker = hf_hub_download(repo_id="pyannote/wespeaker-voxceleb-resnet34-LM", filename="pytorch_model.bin")
+    wespeaker = hf_hub_download(repo_id="pyannote/wespeaker-voxceleb-resnet34-LM", filename="pytorch_model.bin", token=token)
     
     embedding_model = WeSpeakerResNet34.load_from_checkpoint(wespeaker, strict=False, map_location='cpu')
     embedding_model.eval()
