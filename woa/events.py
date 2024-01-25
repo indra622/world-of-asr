@@ -8,7 +8,10 @@ import json
 
 from woa.utils import get_writer, format_output_largev3
 
-hf_token=str(os.environ['HF_TOKEN'])
+if os.environ.get('HF_TOKEN') is not None:
+    hf_token=str(os.environ['HF_TOKEN'])
+else:
+    hf_token=''
 
 def origin_whisper_process(
     files,

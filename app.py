@@ -457,5 +457,8 @@ with gr.Blocks() as ui:
     )
 
 if __name__ == "__main__":
-    server_name = str(os.environ["IP_ADDR"])
-    ui.queue(concurrency_count=10).launch(server_name=server_name, server_port=16389)
+    port=16389
+    if os.environ.get("IP_ADDR") is not None:
+        ui.queue(concurrency_count=10).launch(server_name=str(os.environ["IP_ADDR"]), server_port=port)
+    else:
+        ui.queue(concurrency_count=10).launch(server_port=port)
