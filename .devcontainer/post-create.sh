@@ -12,6 +12,8 @@ pip install lightning
 pip install torchaudio
 pip install einops
 pip install pyannote.audio
+pip install faster-whisper
+sudo apt update && sudo apt install -y ffmpeg
 # Install the OpenAI packages for Node.js
 # (Python related dependencies are covered in requirements.txt)
 # echo "Installing OpenAI For Node.js" 

@@ -20,5 +20,6 @@
 			], 
 			"postCreateCommand": "pip3 --disable-pip-version-check --no-cache-dir install -r requirements.txt"
 		}
-	}
+	},
+	"runArgs": ["-p=16389:16389", "--gpus", "all"]
 }
