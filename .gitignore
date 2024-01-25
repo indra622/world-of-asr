@@ -4,7 +4,6 @@ output/*
 *.mp3
 *.wav
 *.m4a
-*.json
 *.jsonl
 *.flac
 *.ipynb
