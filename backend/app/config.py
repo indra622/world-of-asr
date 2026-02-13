@@ -20,11 +20,11 @@ class Settings(BaseSettings):
 
     # 스토리지 경로
     upload_dir: Path = Path("./storage/uploads")
-    result_dir: Path = Path("./storage/results")
+    results_dir: Path = Path("./storage/results")
     temp_dir: Path = Path("./storage/temp")
 
-    # Hugging Face
-    hf_token: str = ""
+    # Hugging Face (스피커 분별용)
+    huggingface_token: str = ""
 
     # Docker (FastConformer)
     container_id: str = ""
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     def create_directories(self):
         """필요한 디렉토리 생성"""
         self.upload_dir.mkdir(parents=True, exist_ok=True)
-        self.result_dir.mkdir(parents=True, exist_ok=True)
+        self.results_dir.mkdir(parents=True, exist_ok=True)
         self.temp_dir.mkdir(parents=True, exist_ok=True)
 
 
