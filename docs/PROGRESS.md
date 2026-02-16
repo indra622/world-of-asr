@@ -41,6 +41,15 @@ Next up:
  - Gradio: language hint placeholders updated to include `auto`; legacy events treat `auto` as automatic language detection.
  - Added `docs/PROVIDERS.md` for enabling external providers.
 
+## 2026-02-15 (NVIDIA plan + stubs)
+
+- Added NVIDIA integration plan `docs/NVIDIA_INTEGRATION_PLAN.md`.
+- Schema: added model types (nemo_ctc_offline, nemo_rnnt_streaming, triton_ctc, triton_rnnt, nvidia_riva) and `postprocess` options.
+- Config: added flags/URLs for NeMo/Triton/Riva; updated `.env.example`.
+- ModelManager: routing for NVIDIA providers behind flags.
+- Adapters: stubs for NeMo CTC/RNNT, Triton, Riva.
+- Post-processing stubs: PnC and VAD; service wiring to apply when requested.
+
 Next up:
 - Implement provider adapters (Google/Qwen) behind feature flags.
 - Add `samples/` with small test clips + harness.

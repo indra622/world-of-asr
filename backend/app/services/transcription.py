@@ -11,6 +11,8 @@ from app.core.models.manager import model_manager
 from app.core.processors.diarization import DiarizationProcessor
 from app.core.processors.forced_alignment import QwenForcedAligner
 from app.core.processors.formatters import get_writer
+from app.core.processors.pnc import PnCProcessor
+from app.core.processors.vad import VADProcessor
 from app.db.models import Job, UploadedFile, Result, JobStatus
 from app.db.session import AsyncSession
 from app.schemas.transcription import TranscriptionRequest
@@ -167,7 +169,6 @@ class TranscriptionService:
                         )
                         diarization_processor.unload_model()
 
-                    # 결과 저장 (여러 포맷)
                     # 필요 시 강제 정렬(Forced Alignment)
                     try:
                         if job.parameters.get("force_alignment"):
@@ -182,6 +183,18 @@ class TranscriptionService:
                                 )
                     except Exception as e:
                         logger.error(f"Forced alignment failed: {e}")
+
+                    # 후처리 (PnC / VAD)
+                    try:
+                        pp = job.parameters.get("postprocess", {}) if isinstance(job.parameters, dict) else {}
+                        if pp.get("pnc"):
+                            pnc = PnCProcessor()
+                            transcription_result = pnc.process(transcription_result)
+                        if pp.get("vad"):
+                            vad = VADProcessor()
+                            transcription_result = vad.process(transcription_result)
+                    except Exception as e:
+                        logger.error(f"Postprocess failed: {e}")
 
                     # 결과 저장 및 Result 레코드 생성
                     paths = await self._save_results(

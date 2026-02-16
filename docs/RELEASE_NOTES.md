@@ -5,6 +5,7 @@
 - Backend refactor for schema/ORM/service alignment.
 - Security hardening: upload validation, Docker exec argv, health DB check.
 - Multi-provider scaffolding: Google STT, Qwen ASR, forced alignment hooks.
+- NVIDIA integration plan and stubs: NeMo CTC/RNNT, Triton, Riva; post-processing stubs (PnC/VAD).
 - Language `auto`, prompt forwarding, alignment options.
 - Docs: API usage, providers, runbook, issues, progress; samples + smoke tests.
 - Gradio: Backend API tab to drive FastAPI endpoints.
@@ -20,5 +21,4 @@ See `docs/PROGRESS.md` for detailed daily logs.
 ## Next
 
 - Implement Google/Qwen adapters with real API calls (keys required).
-- NVIDIA NeMo/Triton adapters and post-processing chain (PnC/VAD) integration.
-
+- NVIDIA NeMo/Triton adapters and post-processing chain (PnC/VAD) real implementations.

@@ -12,12 +12,33 @@ Speech-to-text workspace combining interactive Gradio tools, a FastAPI backend, 
 
 ## Installation
 
+Prerequisites
+- FFmpeg: `sudo apt-get install -y ffmpeg` (macOS: `brew install ffmpeg`)
+- Python: 3.10+ (3.12 등 최신 버전 사용 가능)
+- Optional: NVIDIA GPU + CUDA/cuDNN (Faster-Whisper/NeMo 가속 시)
+
+Quickstart (venv)
 ```bash
-sudo apt install ffmpeg
-conda create --name woa python=3.11
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Optional (conda)
+```bash
+conda create -n woa python=3.12 -y
 conda activate woa
 pip install -r requirements.txt
 ```
+
+GPU (optional)
+- PyTorch를 GPU로 사용하려면 PyTorch 설치 가이드를 따라 CUDA 빌드를 먼저 설치한 뒤 나머지 요구사항을 설치하세요.
+  ```bash
+  # 예시: CUDA 12.1 (환경에 맞게 수정)
+  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+  pip install -r requirements.txt
+  ```
 
 ### Optional: Backend (FastAPI)
 
@@ -27,6 +48,11 @@ pip install -r requirements.txt
 cp .env.example .env  # update values as needed
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # Swagger: http://localhost:8000/docs
+
+또는 편의 스크립트 사용:
+```bash
+bash scripts/dev_server.sh
+```
 ```
 
 ### Optional: NeMo FastConformer (Docker)
@@ -59,6 +85,8 @@ cd streaming && python whisper_online_server.py
 ```bash
 python app.py
 ```
+
+Backend API 탭을 통해 FastAPI 백엔드를 직접 호출해 업로드/전사/다운로드를 수행할 수도 있습니다.
 
 ## Key Features
 

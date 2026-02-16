@@ -94,6 +94,17 @@ class TranscriptionParameters(BaseModel):
         }
 
 
+class PostprocessOptions(BaseModel):
+    """후처리 옵션"""
+    pnc: bool = Field(default=False, description="Punctuation & Capitalization")
+    vad: bool = Field(default=False, description="Voice Activity Detection")
+
+    class Config:
+        json_schema_extra = {
+            "example": {"pnc": true, "vad": false}
+        }
+
+
 class TranscriptionRequest(BaseModel):
     """전사 요청"""
     file_ids: List[str] = Field(min_length=1, max_length=10, description="업로드된 파일 ID 목록")
@@ -107,6 +118,7 @@ class TranscriptionRequest(BaseModel):
     # 강제 정렬(Forced Alignment) 옵션 (지원 모델에서만 동작)
     force_alignment: bool = Field(default=False, description="강제 정렬 수행 여부")
     alignment_provider: Optional[str] = Field(default="qwen", description="정렬 제공자(qwen 등)")
+    postprocess: Optional[PostprocessOptions] = Field(default=None, description="후처리 옵션")
 
     class Config:
         json_schema_extra = {
