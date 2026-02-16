@@ -97,13 +97,25 @@ Backend API 탭을 통해 FastAPI 백엔드를 직접 호출해 업로드/전사
 
 ## Documentation
 
-- Issues and remediation plan: `docs/ISSUES.md`
-- Progress log: `docs/PROGRESS.md`
-- Archived reports: see `docs/` (migrated from project root)
-- API usage guide: `docs/API_USAGE.md`
-- Samples & smoke test: `docs/SAMPLES.md` and `scripts/run_samples.py`
- - External providers: `docs/PROVIDERS.md`
- - Runbook: `docs/RUNBOOK.md`
+### Core Documentation
+- **[Project Roadmap](docs/ROADMAP.md)** - Phase timeline, current status, and future plans
+- **[Progress Log](docs/PROGRESS.md)** - Chronological log of changes and decisions
+- **[Issues & Remediation](docs/ISSUES.md)** - Known issues with priority-based tracking (P0-P3)
+
+### Technical Documentation
+- **[API Usage Guide](docs/API_USAGE.md)** - REST API endpoints and usage examples
+- **[External Providers](docs/PROVIDERS.md)** - Enabling Google, Qwen, NVIDIA providers
+- **[Runbook](docs/RUNBOOK.md)** - Operational procedures and troubleshooting
+- **[Samples & Testing](docs/SAMPLES.md)** - Test samples and smoke test script
+
+### Integration Plans
+- **[ASR Expansion Plan](docs/ASR_EXPANSION_PLAN.md)** - Future ASR provider integrations
+- **[NVIDIA Integration](docs/NVIDIA_INTEGRATION_PLAN.md)** - NeMo, Triton, Riva integration
+- **[Qwen Alignment Plan](docs/QWEN_ALIGNMENT_PLAN.md)** - Forced alignment implementation
+
+### Completion Reports
+- **[Phase 2 Completion](docs/PHASE2_COMPLETION.md)** - Model integration completion
+- **[Phase 3 Completion](docs/PHASE3_COMPLETION.md)** - Async API completion
 
 ## Notes
 
