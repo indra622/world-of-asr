@@ -69,6 +69,12 @@ class TranscriptionService:
                 _params["force_alignment"] = True
                 if getattr(request, "alignment_provider", None):
                     _params["alignment_provider"] = request.alignment_provider
+            # 후처리 옵션 전달
+            if getattr(request, "postprocess", None) is not None:
+                try:
+                    _params["postprocess"] = request.postprocess.model_dump()
+                except Exception:
+                    pass
 
             job = Job(
                 id=str(uuid.uuid4()),

@@ -378,12 +378,15 @@ with gr.Blocks() as ui:
                 api_prompt = gr.Textbox(label="Initial Prompt", placeholder="Optional initial prompt")
                 api_diar = gr.Checkbox(label="Speaker Diarization", value=False)
                 api_force_align = gr.Checkbox(label="Force Alignment (if supported)", value=False)
+                with gr.Row():
+                    api_pnc = gr.Checkbox(label="Postprocess: PnC (punctuation/caps)", value=False)
+                    api_vad = gr.Checkbox(label="Postprocess: VAD", value=False)
                 api_format = gr.Dropdown(label="Output Format", choices=["vtt", "srt", "json", "txt", "tsv"], value="vtt")
                 api_run = gr.Button(value="Run via Backend API")
 
             api_output = gr.TextArea(label="Transcription Output", value="", interactive=False)
 
-        def backend_api_transcribe(files, host, model, model_size, language, device, prompt, diar, force_align, out_format):
+        def backend_api_transcribe(files, host, model, model_size, language, device, prompt, diar, force_align, out_format, pnc, vad):
             if not files:
                 return "Please select one or more files."
             try:
@@ -397,6 +400,11 @@ with gr.Blocks() as ui:
                 if not file_ids:
                     return "Upload failed: no file_ids returned."
                 # create job
+                postprocess = {}
+                if pnc:
+                    postprocess["pnc"] = True
+                if vad:
+                    postprocess["vad"] = True
                 payload = {
                     "file_ids": file_ids,
                     "model_type": model,
@@ -407,8 +415,10 @@ with gr.Blocks() as ui:
                     "diarization": {"enabled": bool(diar), "min_speakers": 1, "max_speakers": 5},
                     "output_formats": [out_format],
                     "force_alignment": bool(force_align),
-                    "alignment_provider": "qwen"
+                    "alignment_provider": "qwen",
                 }
+                if postprocess:
+                    payload["postprocess"] = postprocess
                 tr = requests.post(host.rstrip("/") + "/api/v1/transcribe", json=payload, timeout=30)
                 tr.raise_for_status()
                 job_id = tr.json().get("job_id")
@@ -439,7 +449,7 @@ with gr.Blocks() as ui:
 
         api_run.click(
             backend_api_transcribe,
-            inputs=[api_files, api_host, api_model, api_model_size, api_language, api_device, api_prompt, api_diar, api_force_align, api_format],
+            inputs=[api_files, api_host, api_model, api_model_size, api_language, api_device, api_prompt, api_diar, api_force_align, api_format, api_pnc, api_vad],
             outputs=[api_output]
         )
 

@@ -21,7 +21,8 @@ Payload example:
   "diarization": {"enabled": true, "min_speakers": 1, "max_speakers": 5},
   "output_formats": ["vtt", "json"],
   "force_alignment": false,
-  "alignment_provider": "qwen"
+  "alignment_provider": "qwen",
+  "postprocess": {"pnc": true, "vad": false}
 }
 ```
 
@@ -29,6 +30,7 @@ Notes:
 - `language`: use an ISO code (e.g., `ko`, `en`) or `auto` for automatic language detection.
 - `parameters.initial_prompt`: forwarded to models that support prompts (e.g., Whisper variants).
 - `force_alignment`: when true and the selected provider doesn’t return word timings, the service may apply a forced alignment pass (provider dependent).
+- `postprocess`: optional post-processing chain, currently supports `pnc` (punctuation & capitalization) and `vad` (voice activity detection). Stubs are wired and can be swapped with real models.
 
 ## Providers
 
