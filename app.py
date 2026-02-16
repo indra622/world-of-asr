@@ -3,6 +3,8 @@ import tqdm
 import gradio as gr
 import os
 import torch
+import requests
+import time
 
 from woa.events import origin_whisper_process, whisper_process, fastconformer_process
 
@@ -33,7 +35,7 @@ with gr.Blocks() as ui:
                     # model selection dropdown
                     origin_model = gr.Dropdown(label="Model", choices=["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"], value="large-v3")
                     # langaue hint input
-                    origin_lang = gr.Text(label="Language Hint", placeholder="ko")
+                    origin_lang = gr.Text(label="Language Hint", placeholder="auto | ko | en")
 
                 with gr.Row():
                     with gr.Group():
@@ -122,7 +124,7 @@ with gr.Blocks() as ui:
                     # model selection dropdown
                     model = gr.Dropdown(label="Model", choices=["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"], value="large-v3")
                     # langaue hint input
-                    lang = gr.Text(label="Language Hint", placeholder="ko")
+                    lang = gr.Text(label="Language Hint", placeholder="auto | ko | en")
 
                 with gr.Row():
                     with gr.Group():
@@ -361,6 +363,85 @@ with gr.Blocks() as ui:
         output_text_field = gr.TextArea(label="Output (changes made wont be saved - files are also in the output folder)", value="", interactive=True)
         file_type.change(fill_output, inputs=[history_dropdown, file_type], outputs=output_text_field)
 
+
+    with gr.Tab(label="Backend API"):
+        with gr.Row():
+            api_files = gr.Files(label="Input Files")
+            with gr.Column():
+                api_host = gr.Text(label="Backend Host", value="http://localhost:8000")
+                api_model = gr.Dropdown(label="Model Type", choices=[
+                    "faster_whisper", "origin_whisper", "fast_conformer", "google_stt", "qwen_asr"
+                ], value="faster_whisper")
+                api_model_size = gr.Text(label="Model Size", value="large-v3")
+                api_language = gr.Text(label="Language", value="auto")
+                api_device = gr.Dropdown(label="Device", choices=["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"], value="cuda" if torch.cuda.is_available() else "cpu")
+                api_prompt = gr.Textbox(label="Initial Prompt", placeholder="Optional initial prompt")
+                api_diar = gr.Checkbox(label="Speaker Diarization", value=False)
+                api_force_align = gr.Checkbox(label="Force Alignment (if supported)", value=False)
+                api_format = gr.Dropdown(label="Output Format", choices=["vtt", "srt", "json", "txt", "tsv"], value="vtt")
+                api_run = gr.Button(value="Run via Backend API")
+
+            api_output = gr.TextArea(label="Transcription Output", value="", interactive=False)
+
+        def backend_api_transcribe(files, host, model, model_size, language, device, prompt, diar, force_align, out_format):
+            if not files:
+                return "Please select one or more files."
+            try:
+                # upload
+                m = []
+                for f in files:
+                    m.append(("files", (f.name.split("/")[-1], open(f.name, "rb"), "application/octet-stream")))
+                up = requests.post(host.rstrip("/") + "/api/v1/upload", files=m, timeout=120)
+                up.raise_for_status()
+                file_ids = up.json().get("file_ids", [])
+                if not file_ids:
+                    return "Upload failed: no file_ids returned."
+                # create job
+                payload = {
+                    "file_ids": file_ids,
+                    "model_type": model,
+                    "model_size": model_size,
+                    "language": language,
+                    "device": device,
+                    "parameters": {"initial_prompt": prompt} if prompt else {},
+                    "diarization": {"enabled": bool(diar), "min_speakers": 1, "max_speakers": 5},
+                    "output_formats": [out_format],
+                    "force_alignment": bool(force_align),
+                    "alignment_provider": "qwen"
+                }
+                tr = requests.post(host.rstrip("/") + "/api/v1/transcribe", json=payload, timeout=30)
+                tr.raise_for_status()
+                job_id = tr.json().get("job_id")
+                if not job_id:
+                    return f"Failed to create job: {tr.text}"
+                # poll
+                status_url = host.rstrip("/") + f"/api/v1/transcribe/jobs/{job_id}"
+                start = time.time()
+                while True:
+                    st = requests.get(status_url, timeout=30)
+                    st.raise_for_status()
+                    data = st.json()
+                    if data.get("status") in ("completed", "failed", "cancelled"):
+                        break
+                    if time.time() - start > 900:
+                        return "Timeout waiting for job completion"
+                    time.sleep(2)
+                if data.get("status") != "completed":
+                    return f"Job finished with status: {data.get('status')} error={data.get('error')}"
+                # download
+                res = requests.get(host.rstrip("/") + f"/api/v1/results/{job_id}/{out_format}", timeout=120)
+                if res.status_code != 200:
+                    return f"Failed to download result: {res.status_code} {res.text}"
+                text = res.text
+                return text
+            except Exception as e:
+                return f"Error: {e}"
+
+        api_run.click(
+            backend_api_transcribe,
+            inputs=[api_files, api_host, api_model, api_model_size, api_language, api_device, api_prompt, api_diar, api_force_align, api_format],
+            outputs=[api_output]
+        )
 
     #########################################
     ############Button Event Zone############

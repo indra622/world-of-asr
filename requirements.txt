@@ -8,3 +8,4 @@ lightning
 torchaudio
 einops
 pyannote.audio
+requests

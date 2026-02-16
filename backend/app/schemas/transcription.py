@@ -21,6 +21,13 @@ class ModelType(str, Enum):
     ORIGIN_WHISPER = "origin_whisper"
     FASTER_WHISPER = "faster_whisper"
     FAST_CONFORMER = "fast_conformer"
+    GOOGLE_STT = "google_stt"
+    QWEN_ASR = "qwen_asr"
+    NEMO_CTC_OFFLINE = "nemo_ctc_offline"
+    NEMO_RNNT_STREAMING = "nemo_rnnt_streaming"
+    TRITON_CTC = "triton_ctc"
+    TRITON_RNNT = "triton_rnnt"
+    NVIDIA_RIVA = "nvidia_riva"
 
 
 class OutputFormat(str, Enum):
@@ -92,11 +99,14 @@ class TranscriptionRequest(BaseModel):
     file_ids: List[str] = Field(min_length=1, max_length=10, description="업로드된 파일 ID 목록")
     model_type: ModelType = Field(description="ASR 모델 타입")
     model_size: str = Field(default="large-v3", description="모델 크기")
-    language: Optional[str] = Field(default="ko", description="언어 힌트")
+    language: Optional[str] = Field(default="ko", description="언어 힌트 (예: 'ko', 'en', 'auto')")
     device: str = Field(default="cuda", description="디바이스 (cpu, cuda)")
     parameters: TranscriptionParameters = Field(default_factory=TranscriptionParameters)
     diarization: DiarizationConfig = Field(default_factory=DiarizationConfig)
     output_formats: List[OutputFormat] = Field(default=[OutputFormat.VTT], description="출력 형식")
+    # 강제 정렬(Forced Alignment) 옵션 (지원 모델에서만 동작)
+    force_alignment: bool = Field(default=False, description="강제 정렬 수행 여부")
+    alignment_provider: Optional[str] = Field(default="qwen", description="정렬 제공자(qwen 등)")
 
     class Config:
         json_schema_extra = {
@@ -109,6 +119,24 @@ class TranscriptionRequest(BaseModel):
                 "parameters": {},
                 "diarization": {"enabled": True, "min_speakers": 1, "max_speakers": 5},
                 "output_formats": ["vtt", "json"]
+            }
+        }
+
+
+class TranscriptionResponse(BaseModel):
+    """전사 생성 응답"""
+    job_id: str
+    status: JobStatus
+    message: str
+    files_count: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "job_id": "job-uuid",
+                "status": "queued",
+                "message": "Transcription job created and queued for processing",
+                "files_count": 2
             }
         }
 

@@ -40,10 +40,42 @@ class Settings(BaseSettings):
     # 파일 업로드 제한
     max_file_size: int = 524288000  # 500MB
     max_files: int = 10
+    # 업로드 허용 목록
+    allowed_upload_exts: List[str] = [
+        ".wav",
+        ".mp3",
+        ".m4a",
+        ".flac",
+        ".ogg",
+        ".mp4",
+        ".mkv",
+    ]
+    allowed_mime_prefixes: List[str] = [
+        "audio/",
+        "video/",
+    ]
 
     # GPU 설정
     default_device: str = "cuda"
     max_concurrent_jobs: int = 3
+
+    # 외부 ASR 제공자 설정
+    enable_google: bool = False
+    google_project_id: str = ""
+    google_location: str = "global"
+    google_api_key: str = ""  # 또는 서비스 계정 JSON 경로 사용
+
+    enable_qwen: bool = False
+    qwen_api_key: str = ""
+    qwen_endpoint: str = ""
+
+    # NVIDIA providers
+    enable_nemo: bool = False
+    nemo_container_id: str = ""  # optional alternative to FastConformer container
+    enable_triton: bool = False
+    triton_url: str = "http://localhost:8000"  # example
+    enable_riva: bool = False
+    riva_url: str = ""  # riva server endpoint
 
     model_config = SettingsConfigDict(
         env_file=".env",

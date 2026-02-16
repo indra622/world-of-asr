@@ -13,8 +13,6 @@ sqlalchemy==2.0.27
 alembic==1.13.1
 aiosqlite==0.20.0
 
-# 비동기 처리
-asyncio==3.4.3
 
 # 기존 ASR 라이브러리 (woa 모듈에서 재사용)
 whisper-timestamped==1.14.2

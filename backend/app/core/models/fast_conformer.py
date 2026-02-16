@@ -85,9 +85,10 @@ class FastConformerModel(ASRModelBase):
             logger.info(f"Transcribing with FastConformer (Docker): {audio_path}")
 
             # Docker exec 실행 (기존 woa/events.py:234)
+            # Pass argv as list to avoid shell parsing issues
             result = self.container.exec_run(
-                f"python run_nemo.py {audio_path}",
-                stderr=False
+                cmd=["python", "run_nemo.py", audio_path],
+                stderr=False,
             )
 
             # 결과 파싱 (기존 woa/events.py:227-230, 235)

@@ -174,14 +174,26 @@ async def get_all_results(
 
         # 결과 정보 구성
         results = []
-        for result in job.results:
+        for r in job.results:
+            available = []
+            if r.json_path:
+                available.append("json")
+            if r.vtt_path:
+                available.append("vtt")
+            if r.srt_path:
+                available.append("srt")
+            if r.txt_path:
+                available.append("txt")
+            if r.tsv_path:
+                available.append("tsv")
+
             results.append({
-                "file_id": str(result.file_id),
-                "filename": result.file.filename if result.file else "unknown",
-                "segments_count": result.segments_count,
-                "speakers_count": result.speakers_count,
-                "available_formats": list(result.output_paths.keys()),
-                "created_at": result.created_at
+                "file_id": str(r.file_id),
+                "filename": r.file.original_filename if r.file else "unknown",
+                "segments_count": r.segment_count,
+                "speakers_count": r.speaker_count,
+                "available_formats": available,
+                "created_at": r.created_at,
             })
 
         return {

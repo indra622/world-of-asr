@@ -49,8 +49,9 @@ def origin_whisper_process(
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
         audio = whisper.load_audio(file.name)
+        lang_arg = None if (lang == "" or (isinstance(lang, str) and lang.lower() == "auto")) else lang
         result = whisper.transcribe(whisper_model, audio, beam_size=beam_size, 
-                                    language=None if lang == "" else lang, vad='auditok', 
+                                    language=lang_arg, vad='auditok', 
                                     temperature=temperature, condition_on_previous_text=condition_on_previous_text,
                                     initial_prompt=initial_prompt, length_penalty=length_penalty, patience=patience,
                                     compression_ratio_threshold=compression_ratio_threshold, logprob_threshold=logprob_threshold,
@@ -136,7 +137,8 @@ def whisper_process(
     whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
-        segs,info = whisper_model.transcribe(file.name, language=None if lang == "" else lang)
+        lang_arg = None if (lang == "" or (isinstance(lang, str) and lang.lower() == "auto")) else lang
+        segs,info = whisper_model.transcribe(file.name, language=lang_arg)
         result = format_output_largev3(segs)
         results.append((result, file.name))
 
@@ -231,7 +233,8 @@ def fastconformer_process(
 
     for file in tqdm.tqdm(files, desc="Transcribing", position=0, leave=True, unit="files"):
         audio = f'{file.name}'
-        result = container.exec_run(f"python run_nemo.py {audio}", stderr=False)
+        # Avoid shell parsing by passing argv list
+        result = container.exec_run(["python", "run_nemo.py", audio], stderr=False)
         result = post_processing(result.output.decode("utf-8"))
         results.append((result[0][0], file.name))
   

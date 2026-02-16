@@ -9,12 +9,14 @@ import logging
 
 from app.core.models.manager import model_manager
 from app.core.processors.diarization import DiarizationProcessor
+from app.core.processors.forced_alignment import QwenForcedAligner
 from app.core.processors.formatters import get_writer
-from app.db.models import Job, UploadedFile, Result
+from app.db.models import Job, UploadedFile, Result, JobStatus
 from app.db.session import AsyncSession
-from app.schemas.transcription import TranscriptionRequest, JobStatus
+from app.schemas.transcription import TranscriptionRequest
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -59,20 +61,29 @@ class TranscriptionService:
                 raise ValueError(f"Some files not found: requested {len(file_ids)}, found {len(files)}")
 
             # Job 생성
+            # force_alignment/alignment_provider은 parameters에 함께 저장해 처리
+            _params = request.parameters.model_dump() if request.parameters else {}
+            if getattr(request, "force_alignment", False):
+                _params["force_alignment"] = True
+                if getattr(request, "alignment_provider", None):
+                    _params["alignment_provider"] = request.alignment_provider
+
             job = Job(
-                status=JobStatus.PENDING,
-                model_type=request.model_type,
+                id=str(uuid.uuid4()),
+                status=JobStatus.QUEUED,
+                model_type=str(request.model_type),
                 model_size=request.model_size,
                 language=request.language,
                 device=request.device,
-                parameters=request.parameters.model_dump() if request.parameters else {},
-                diarization_enabled=request.diarization.enabled if request.diarization else False,
-                output_formats=request.output_formats,
+                parameters=_params,
+                diarization_config=(request.diarization.model_dump() if request.diarization else None),
+                output_formats=[str(fmt) if not isinstance(fmt, str) else fmt for fmt in request.output_formats],
+                total_files=len(files),
             )
 
             # 파일 연결
             for file in files:
-                job.files.append(file)
+                file.job = job
 
             self.db.add(job)
             await self.db.commit()
@@ -101,7 +112,7 @@ class TranscriptionService:
         try:
             # Job 조회
             stmt = select(Job).where(Job.id == job_id).options(
-                selectinload(Job.files)
+                selectinload(Job.uploaded_files)
             )
             result = await self.db.execute(stmt)
             job = result.scalar_one_or_none()
@@ -124,9 +135,9 @@ class TranscriptionService:
             )
 
             # 각 파일 처리
-            total_files = len(job.files)
-            for idx, file in enumerate(job.files, 1):
-                logger.info(f"Processing file {idx}/{total_files}: {file.filename}")
+            total_files = len(job.uploaded_files)
+            for idx, file in enumerate(job.uploaded_files, 1):
+                logger.info(f"Processing file {idx}/{total_files}: {file.original_filename}")
 
                 # 진행률 업데이트
                 job.progress = int((idx - 1) / total_files * 100)
@@ -134,43 +145,67 @@ class TranscriptionService:
 
                 try:
                     # 전사 수행
+                    lang_hint = None if (not job.language or str(job.language).lower() == "auto") else job.language
                     transcription_result = model.transcribe(
-                        audio_path=file.file_path,
-                        language=job.language,
+                        audio_path=file.storage_path,
+                        language=lang_hint,
                         params=job.parameters
                     )
 
                     # 스피커 분별 (옵션)
-                    if job.diarization_enabled:
-                        logger.info(f"Running diarization for file {file.filename}")
+                    enabled = False
+                    if job.diarization_config and isinstance(job.diarization_config, dict):
+                        enabled = bool(job.diarization_config.get("enabled", False))
+                    if enabled:
+                        logger.info(f"Running diarization for file {file.original_filename}")
                         diarization_processor = DiarizationProcessor(hf_token=hf_token)
                         transcription_result = diarization_processor.process(
-                            audio_path=file.file_path,
+                            audio_path=file.storage_path,
                             transcription_result=transcription_result,
-                            min_speakers=2,  # TODO: 파라미터로 받기
-                            max_speakers=15
+                            min_speakers=int(job.diarization_config.get("min_speakers", 2)),
+                            max_speakers=int(job.diarization_config.get("max_speakers", 15)),
                         )
                         diarization_processor.unload_model()
 
                     # 결과 저장 (여러 포맷)
-                    output_paths = await self._save_results(
+                    # 필요 시 강제 정렬(Forced Alignment)
+                    try:
+                        if job.parameters.get("force_alignment"):
+                            # only meaningful if words missing
+                            has_words = bool(transcription_result.get("segments") and transcription_result["segments"][0].get("words"))
+                            provider = job.parameters.get("alignment_provider", "qwen")
+                            if not has_words and provider == "qwen":
+                                aligner = QwenForcedAligner()
+                                transcription_result = aligner.align(
+                                    audio_path=file.storage_path,
+                                    transcription_result=transcription_result,
+                                )
+                    except Exception as e:
+                        logger.error(f"Forced alignment failed: {e}")
+
+                    # 결과 저장 및 Result 레코드 생성
+                    paths = await self._save_results(
                         job=job,
                         file=file,
                         transcription_result=transcription_result
                     )
 
-                    # Result 레코드 생성
                     result_record = Result(
+                        id=str(uuid.uuid4()),
                         job_id=job.id,
                         file_id=file.id,
-                        segments_count=len(transcription_result.get("segments", [])),
-                        speakers_count=self._count_speakers(transcription_result),
-                        output_paths=output_paths
+                        segment_count=len(transcription_result.get("segments", [])),
+                        speaker_count=self._count_speakers(transcription_result),
+                        json_path=paths.get("json"),
+                        vtt_path=paths.get("vtt"),
+                        srt_path=paths.get("srt"),
+                        txt_path=paths.get("txt"),
+                        tsv_path=paths.get("tsv"),
                     )
                     self.db.add(result_record)
 
                 except Exception as e:
-                    logger.error(f"Failed to process file {file.filename}: {e}")
+                    logger.error(f"Failed to process file {file.original_filename}: {e}")
                     job.status = JobStatus.FAILED
                     job.error_message = str(e)
                     await self.db.commit()
@@ -223,10 +258,16 @@ class TranscriptionService:
                 writer = get_writer(format_name, str(output_dir))
                 output_path = writer(
                     result=transcription_result,
-                    audio_path=file.filename,
+                    audio_path=file.original_filename,
                     options={}  # TODO: 옵션 파라미터 추가
                 )
-                output_paths[format_name] = output_path
+                # writer may return a list (for 'all'); normalize
+                if isinstance(output_path, list):
+                    for p in output_path:
+                        ext = Path(p).suffix.lstrip('.')
+                        output_paths[ext] = p
+                else:
+                    output_paths[format_name] = output_path
                 logger.info(f"Saved {format_name} result: {output_path}")
 
             except Exception as e:
@@ -265,7 +306,7 @@ class TranscriptionService:
             Job 인스턴스 또는 None
         """
         stmt = select(Job).where(Job.id == job_id).options(
-            selectinload(Job.files),
+            selectinload(Job.uploaded_files),
             selectinload(Job.results)
         )
         result = await self.db.execute(stmt)
@@ -291,10 +332,17 @@ class TranscriptionService:
         if not job or not job.results:
             return None
 
-        # 첫 번째 결과의 output_paths에서 해당 포맷 찾기
-        # TODO: 여러 파일 처리 시 개선 필요
-        for result in job.results:
-            if format_name in result.output_paths:
-                return result.output_paths[format_name]
+        # 첫 번째 결과의 컬럼에서 해당 포맷 경로 반환 (여러 파일 시 개선 필요)
+        for r in job.results:
+            if format_name == "json" and r.json_path:
+                return r.json_path
+            if format_name == "vtt" and r.vtt_path:
+                return r.vtt_path
+            if format_name == "srt" and r.srt_path:
+                return r.srt_path
+            if format_name == "txt" and r.txt_path:
+                return r.txt_path
+            if format_name == "tsv" and r.tsv_path:
+                return r.tsv_path
 
         return None

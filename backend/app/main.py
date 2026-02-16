@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.config import settings
-from app.db.session import init_db
+from app.db.session import init_db, AsyncSessionLocal
+from sqlalchemy import text
 
 # 로깅 설정
 logging.basicConfig(
@@ -68,9 +69,23 @@ async def root():
 @app.get("/health")
 async def health_check():
     """헬스 체크 엔드포인트"""
+    # DB 연결 확인 간단 쿼리
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception:
+        db_status = "unavailable"
+
+    from app.config import settings as cfg
+
     return {
-        "status": "healthy",
-        "database": "connected"
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "database": db_status,
+        "providers": {
+            "google_stt_enabled": cfg.enable_google,
+            "qwen_asr_enabled": cfg.enable_qwen,
+        },
     }
 
 

@@ -11,7 +11,7 @@ from app.schemas.transcription import (
     TranscriptionRequest,
     TranscriptionResponse,
     JobResponse,
-    JobStatus
+    JobStatus,
 )
 from app.services.transcription import TranscriptionService
 from app.config import settings
@@ -86,7 +86,7 @@ async def create_transcription(
             job_id=str(job.id),
             status=job.status,
             message="Transcription job created and queued for processing",
-            files_count=len(job.files)
+            files_count=len(job.uploaded_files)
         )
 
     except ValueError as e:
@@ -172,14 +172,12 @@ async def get_job_status(
             job_id=str(job.id),
             status=job.status,
             progress=job.progress or 0,
-            files_count=len(job.files),
+            current_file=job.current_file,
+            total_files=job.total_files or 0,
             created_at=job.created_at,
+            started_at=job.started_at,
             completed_at=job.completed_at,
-            error_message=job.error_message,
-            model_type=job.model_type,
-            model_size=job.model_size,
-            language=job.language,
-            results_ready=job.status == JobStatus.COMPLETED and len(job.results) > 0
+            error=job.error_message,
         )
 
     except HTTPException:
@@ -190,3 +188,38 @@ async def get_job_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve job status"
         )
+@router.get(
+    "/providers",
+    summary="지원 제공자 및 모델 정보",
+    description="현재 활성화된 ASR 제공자와 지원 모델/언어 정보를 반환합니다."
+)
+async def list_providers():
+    providers = {
+        "origin_whisper": True,
+        "faster_whisper": True,
+        "fast_conformer": True,
+        "google_stt": settings.enable_google,
+        "qwen_asr": settings.enable_qwen,
+        "nemo_ctc_offline": settings.enable_nemo,
+        "nemo_rnnt_streaming": settings.enable_nemo,
+        "triton_ctc": settings.enable_triton,
+        "triton_rnnt": settings.enable_triton,
+        "nvidia_riva": settings.enable_riva,
+    }
+
+    models = {
+        "origin_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
+        "faster_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
+        "fast_conformer": ["fast-conformer"]
+    }
+
+    languages = [
+        "auto", "en", "ko", "ja", "zh", "de", "es", "fr", "ru", "it", "pt", "vi", "th"
+    ]
+
+    return {
+        "providers": providers,
+        "models": models,
+        "languages": languages,
+        "notes": "External providers require keys; see docs/PROVIDERS.md"
+    }

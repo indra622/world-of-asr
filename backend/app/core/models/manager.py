@@ -9,6 +9,31 @@ from app.core.models.base import ASRModelBase
 from app.core.models.faster_whisper import FasterWhisperModel
 from app.core.models.whisper_original import OriginWhisperModel
 from app.core.models.fast_conformer import FastConformerModel
+from app.config import settings
+try:
+    from app.core.models.google_stt import GoogleSTTModel  # optional
+except Exception:  # pragma: no cover
+    GoogleSTTModel = None
+try:
+    from app.core.models.qwen_asr import QwenASRModel  # optional
+except Exception:  # pragma: no cover
+    QwenASRModel = None
+try:
+    from app.core.models.nemo_ctc import NemoCTCModel  # optional
+except Exception:  # pragma: no cover
+    NemoCTCModel = None
+try:
+    from app.core.models.nemo_rnnt import NemoRNNTModel  # optional
+except Exception:  # pragma: no cover
+    NemoRNNTModel = None
+try:
+    from app.core.models.triton_asr import TritonASRModel  # optional
+except Exception:  # pragma: no cover
+    TritonASRModel = None
+try:
+    from app.core.models.riva_asr import RivaASRModel  # optional
+except Exception:  # pragma: no cover
+    RivaASRModel = None
 import logging
 
 logger = logging.getLogger(__name__)
@@ -131,10 +156,46 @@ class ModelManager:
             return OriginWhisperModel(model_size, device)
         elif model_type == "fast_conformer":
             return FastConformerModel(model_size, device)
+        elif model_type == "google_stt":
+            if not settings.enable_google:
+                raise ValueError("Google STT is disabled. Set enable_google=True")
+            if GoogleSTTModel is None:
+                raise ImportError("GoogleSTTModel not available (missing deps)")
+            return GoogleSTTModel(model_size, device)
+        elif model_type == "qwen_asr":
+            if not settings.enable_qwen:
+                raise ValueError("Qwen ASR is disabled. Set enable_qwen=True")
+            if QwenASRModel is None:
+                raise ImportError("QwenASRModel not available (missing deps)")
+            return QwenASRModel(model_size, device)
+        elif model_type == "nemo_ctc_offline":
+            if not settings.enable_nemo:
+                raise ValueError("NeMo disabled. Set enable_nemo=True")
+            if NemoCTCModel is None:
+                raise ImportError("NemoCTCModel not available")
+            return NemoCTCModel(model_size, device)
+        elif model_type == "nemo_rnnt_streaming":
+            if not settings.enable_nemo:
+                raise ValueError("NeMo disabled. Set enable_nemo=True")
+            if NemoRNNTModel is None:
+                raise ImportError("NemoRNNTModel not available")
+            return NemoRNNTModel(model_size, device)
+        elif model_type == "triton_ctc" or model_type == "triton_rnnt":
+            if not settings.enable_triton:
+                raise ValueError("Triton disabled. Set enable_triton=True")
+            if TritonASRModel is None:
+                raise ImportError("TritonASRModel not available")
+            return TritonASRModel(model_type=model_type, model_size=model_size, device=device)
+        elif model_type == "nvidia_riva":
+            if not settings.enable_riva:
+                raise ValueError("Riva disabled. Set enable_riva=True")
+            if RivaASRModel is None:
+                raise ImportError("RivaASRModel not available")
+            return RivaASRModel(model_size, device)
         else:
             raise ValueError(
                 f"Unknown model type: {model_type}. "
-                f"Supported types: origin_whisper, faster_whisper, fast_conformer"
+                f"Supported types: origin_whisper, faster_whisper, fast_conformer, google_stt, qwen_asr, nemo_ctc_offline, nemo_rnnt_streaming, triton_ctc, triton_rnnt, nvidia_riva"
             )
 
     def clear_cache(self, model_type: Optional[str] = None):
