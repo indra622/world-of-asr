@@ -22,3 +22,11 @@ See `docs/PROGRESS.md` for detailed daily logs.
 
 - Implement Google/Qwen adapters with real API calls (keys required).
 - NVIDIA NeMo/Triton adapters and post-processing chain (PnC/VAD) real implementations.
+
+## Release Checklist (minimum)
+
+- [ ] Run docs integrity check: `python scripts/check_docs.py`
+- [ ] Run backend smoke tests:
+  - [ ] `bash scripts/fetch_samples.sh`
+  - [ ] `python scripts/run_samples.py --host http://localhost:8000 --files samples/example.wav --model faster_whisper --model-size large-v3 --language auto --format vtt --out samples/output`
+- [ ] Verify backend health endpoint: `curl http://localhost:8000/health`

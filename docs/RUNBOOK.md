@@ -64,6 +64,16 @@ Expected result:
 - job transitions queued -> processing -> completed
 - output file generated under `samples/output`
 
+## Documentation Integrity Check
+
+```bash
+python scripts/check_docs.py
+```
+
+Expected result:
+- stale markdown references are not detected
+- referenced markdown files exist
+
 ## Environment Basics
 
 Backend env file:

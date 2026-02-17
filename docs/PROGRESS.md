@@ -336,3 +336,45 @@ After thorough code review, discovered that **all Quick Win issues have already 
 - Add endpoint-specific error body examples for upload/result routes (not only generic errors).
 - Add minimal Korean quickstart variant section if bilingual onboarding becomes a requirement.
 - Add docs maintenance checklist (link integrity + stale status scan) to release process.
+
+## 2026-02-16 (documentation quality automation)
+
+### Changed
+- Added `scripts/check_docs.py` to automate documentation integrity checks:
+  - Detects missing markdown file references written as inline backtick paths (`docs/...`, `backend/...`, `scripts/...`).
+  - Detects deprecated completion report path pattern (`PHASE2_COMPLETION.md`, `PHASE3_COMPLETION.md`).
+- Added usage guidance for docs check command in:
+  - `README.md`
+  - `docs/RUNBOOK.md`
+
+### Verification
+- Executed: `python scripts/check_docs.py`
+- Result: passed (no missing markdown links, no stale completion-report path usage).
+
+### Next Iteration Focus
+- Expand docs checker to validate section anchors for internal links.
+- Add optional CI wiring so docs checks run automatically on pull requests.
+- Add release checklist item to run docs smoke checks with backend smoke test.
+
+## 2026-02-16 (documentation quality automation - iteration 2)
+
+### Changed
+- Expanded `scripts/check_docs.py`:
+  - Added markdown heading anchor indexing for all `.md` files.
+  - Added validation for internal anchor links (`#anchor`) and file+anchor links (`file.md#anchor`).
+  - Kept stale completion filename detection and missing markdown path checks.
+- Wired docs checks into CI pull request path:
+  - Added `docs-check` job in `.github/workflows/tests.yml`.
+  - This runs `python scripts/check_docs.py` on both `push` and `pull_request`.
+- Added release process checklist items in `docs/RELEASE_NOTES.md`:
+  - docs integrity check command
+  - backend sample smoke test commands
+  - backend health verification command
+
+### Verification
+- Executed: `python scripts/check_docs.py`
+- Result: passed after adjusting stale-pattern wording in progress log.
+
+### Next Iteration Focus
+- Extend docs checker to optionally validate external links in non-blocking mode.
+- Split CI into required vs optional docs quality gates if runtime matrix expands.

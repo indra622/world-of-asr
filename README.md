@@ -199,6 +199,14 @@ python scripts/run_samples.py --host http://localhost:8000 \
   --language auto --format vtt --out samples/output
 ```
 
+## Documentation Quality Check
+
+Run docs integrity checks (stale refs + missing markdown links):
+
+```bash
+python scripts/check_docs.py
+```
+
 ## Notes
 
 - Do not commit `backend/.env`; use `backend/.env.example`.
