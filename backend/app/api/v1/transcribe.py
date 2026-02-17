@@ -134,7 +134,7 @@ async def process_transcription_task(job_id: str, hf_token: str):
     전사 작업의 현재 상태를 조회합니다.
 
     **작업 상태:**
-    - `pending`: 대기 중
+    - `queued`: 대기 중
     - `processing`: 처리 중
     - `completed`: 완료
     - `failed`: 실패

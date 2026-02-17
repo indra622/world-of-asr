@@ -1,150 +1,223 @@
-'''''''''''''''''''''''''''''''''''''''''''''
-
-python sock_streaming_client.py 
-for MacOS and Windows
-
-requirements
-pyaudio python-dotenv
-
-
-'''''''''''''''''''''''''''''''''''''''''''''
-
-
-import socket
-import tkinter as tk
-import pyaudio
-import threading
-import numpy as np
-from dotenv import load_dotenv
 import os
+import queue
+import socket
+import threading
+import tkinter as tk
+from typing import Optional, Tuple
+
+import pyaudio
+from dotenv import load_dotenv
+
 
 load_dotenv()
 
-TARGET_FORMAT = pyaudio.paInt16  # 목표 포맷 (16-bit)
-TARGET_RATE = 16000  # 목표 샘플링 레이트
+TARGET_FORMAT = pyaudio.paInt16
+TARGET_RATE = 16000
+CHUNK = 8192
+CHANNELS = 1
 
-CHUNK = 8192  # 오디오 청크 크기
-CHANNELS = 1  # 스테레오
+HOST = os.environ.get("STREAM_HOST", "127.0.0.1")
+PORT = int(os.environ.get("STREAM_PORT", "43007"))
 
-p = pyaudio.PyAudio()
-streaming = False  # 스트리밍 상태를 나타내는 변수
 
-HOST = "127.0.0.1"
-PORT = 43007
-#HOST = os.environ.get('STREAM_HOST')
-#PORT = os.environ.get('STREAM_PORT')
+class StreamingClientApp:
+    def __init__(self) -> None:
+        self.host = HOST
+        self.port = PORT
+        self.stop_event = threading.Event()
+        self.pyaudio_instance = pyaudio.PyAudio()
+        self.sock: Optional[socket.socket] = None
+        self.send_thread: Optional[threading.Thread] = None
+        self.recv_thread: Optional[threading.Thread] = None
+        self.message_queue: "queue.Queue[Tuple[str, str]]" = queue.Queue()
 
-p = pyaudio.PyAudio()
+        self.root = tk.Tk()
+        self.root.title("Audio Streaming Client")
+        self.switch_var = tk.BooleanVar(value=False)
 
-stop_event = threading.Event()
+        self.text_result = tk.Text(self.root, wrap=tk.WORD, width=50, height=15)
+        self._build_ui()
 
-def send_audio():
-    stream = p.open(format=TARGET_FORMAT, channels=CHANNELS, rate=TARGET_RATE, input=True, frames_per_buffer=CHUNK)
-    
-    try:
-        while not stop_event.is_set():
-            data = stream.read(CHUNK)
-            s.sendall(data)
-    except:
-        pass
-    finally:
-        stream.stop_stream()
-        stream.close()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.after(100, self._drain_messages)
 
-def receive_results():
-    try:
-        while True:
-            response = s.recv(CHUNK)
-            if response:
-                output = response.decode().replace('\x00', '').strip()
+        self.log("Warming up connection....")
+        self._warmup_connection()
+
+    def _build_ui(self) -> None:
+        switch = tk.Checkbutton(
+            self.root,
+            text="Toggle Switch",
+            variable=self.switch_var,
+            command=self.switch_toggled,
+        )
+        switch.pack(pady=20)
+
+        start_button = tk.Button(self.root, text="Start", command=self.start_audio)
+        start_button.pack(pady=20)
+
+        stop_button = tk.Button(self.root, text="Stop", command=self.stop_audio)
+        stop_button.pack(pady=20)
+
+        clear_button = tk.Button(
+            self.root,
+            text="Clear",
+            command=lambda: self.text_result.delete(1.0, tk.END),
+        )
+        clear_button.pack(pady=20)
+
+        self.text_result.pack(pady=10)
+
+    def _drain_messages(self) -> None:
+        try:
+            while True:
+                kind, message = self.message_queue.get_nowait()
+                if kind == "log":
+                    self.text_result.insert(tk.END, f"[LOG]{message}\n")
+                else:
+                    self.text_result.insert(tk.END, f"{message}\n")
+                self.text_result.see(tk.END)
+        except queue.Empty:
+            pass
+        finally:
+            self.root.after(100, self._drain_messages)
+
+    def log(self, message: str) -> None:
+        self.message_queue.put(("log", message))
+
+    def push_result(self, message: str) -> None:
+        self.message_queue.put(("result", message))
+
+    def _warmup_connection(self) -> None:
+        warmup_socket: Optional[socket.socket] = None
+        try:
+            warmup_socket = socket.create_connection((self.host, self.port), timeout=2.0)
+            if warmup_socket.fileno() != -1:
+                warmup_socket.shutdown(socket.SHUT_RDWR)
+            self.log("Ready to work!")
+        except OSError as exc:
+            self.log(f"Connection failed: {exc}")
+        finally:
+            if warmup_socket is not None:
+                warmup_socket.close()
+
+    def _close_socket(self) -> None:
+        if self.sock is None:
+            return
+        try:
+            if self.sock.fileno() != -1:
+                self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError as exc:
+            self.log(f"Error during shutdown: {exc}")
+        finally:
+            self.sock.close()
+            self.sock = None
+
+    def send_audio(self) -> None:
+        sock = self.sock
+        if sock is None:
+            self.log("Socket is not connected")
+            return
+
+        stream = None
+        try:
+            stream = self.pyaudio_instance.open(
+                format=TARGET_FORMAT,
+                channels=CHANNELS,
+                rate=TARGET_RATE,
+                input=True,
+                frames_per_buffer=CHUNK,
+            )
+            while not self.stop_event.is_set():
+                data = stream.read(CHUNK, exception_on_overflow=False)
+                sock.sendall(data)
+        except OSError as exc:
+            self.log(f"Audio send error: {exc}")
+            self.stop_event.set()
+        finally:
+            if stream is not None:
+                stream.stop_stream()
+                stream.close()
+
+    def receive_results(self) -> None:
+        sock = self.sock
+        if sock is None:
+            self.log("Socket is not connected")
+            return
+
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    response = sock.recv(CHUNK)
+                except socket.timeout:
+                    continue
+
+                if not response:
+                    self.log("Server closed the connection")
+                    self.stop_event.set()
+                    break
+
+                output = response.decode(errors="replace").replace("\x00", "").strip()
                 if output:
-                    text_result.insert(tk.END, f"{output}\n")
-                    text_result.see(tk.END)  # 자동 스크롤
-    except:
-        pass
+                    self.push_result(output)
+        except OSError as exc:
+            self.log(f"Receive error: {exc}")
+            self.stop_event.set()
 
-def start_audio():
-    global s
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
-    text_result.insert(tk.END, "[LOG]Connected to server....\n")
-    global send_thread, recv_thread
-    send_thread = threading.Thread(target=send_audio)
-    recv_thread = threading.Thread(target=receive_results)
-    send_thread.start()
-    recv_thread.start()
-    
-    
+    def start_audio(self) -> None:
+        if self.sock is not None and self.sock.fileno() != -1:
+            self.log("Already connected")
+            return
 
-def stop_audio():
-    global send_thread, recv_thread
-    stop_event.set()
-    text_result.insert(tk.END, "[LOG]Disconnecting from server...\n")
-    if send_thread:
-        send_thread.join(timeout=1)
-    if recv_thread:
-        recv_thread.join(timeout=1)
-    
-    try:
-        if s.fileno() != -1:
-            s.shutdown(socket.SHUT_RDWR)
-    except OSError as e:
-        print(f"[LOG]Error during shutdown: {e}")
-    finally:
-        s.close()
+        try:
+            self.sock = socket.create_connection((self.host, self.port), timeout=3.0)
+            self.sock.settimeout(0.5)
+        except OSError as exc:
+            self.log(f"Failed to connect: {exc}")
+            self.sock = None
+            self.switch_var.set(False)
+            return
 
-    stop_event.clear()
-    text_result.insert(tk.END, "[LOG]Disconnected!\n")
+        self.stop_event.clear()
+        self.log("Connected to server....")
 
+        self.send_thread = threading.Thread(target=self.send_audio, daemon=True)
+        self.recv_thread = threading.Thread(target=self.receive_results, daemon=True)
+        self.send_thread.start()
+        self.recv_thread.start()
 
-def switch_toggled():
-    # 스위치 상태에 따라 동작 수행
-    if switch_var.get():
-        print("Switch ON")
-        # 여기에 스위치 켜짐 상태일 때의 코드 추가
-        start_audio()
-    else:
-        print("Switch OFF")
-        # 여기에 스위치 꺼짐 상태일 때의 코드 추가
-        stop_audio()
+    def stop_audio(self) -> None:
+        self.stop_event.set()
+        self.log("Disconnecting from server...")
 
-app = tk.Tk()
-app.title("Audio Streaming Client")
+        if self.send_thread is not None:
+            self.send_thread.join(timeout=1)
+            self.send_thread = None
+        if self.recv_thread is not None:
+            self.recv_thread.join(timeout=1)
+            self.recv_thread = None
 
-switch_var = tk.BooleanVar()
+        self._close_socket()
+        self.stop_event.clear()
+        self.log("Disconnected!")
 
-switch = tk.Checkbutton(app, text="Toggle Switch", var=switch_var, command=switch_toggled)
-switch.pack(pady=20)
+    def switch_toggled(self) -> None:
+        if self.switch_var.get():
+            self.log("Switch ON")
+            self.start_audio()
+            return
+        self.log("Switch OFF")
+        self.stop_audio()
 
-start_button = tk.Button(app, text="Start", command=start_audio)
-start_button.pack(pady=20)
+    def on_close(self) -> None:
+        self.switch_var.set(False)
+        self.stop_audio()
+        self.pyaudio_instance.terminate()
+        self.root.destroy()
 
-stop_button = tk.Button(app, text="Stop", command=stop_audio)
-stop_button.pack(pady=20)
-
-clear_button = tk.Button(app, text="Clear", command=lambda: text_result.delete(1.0, tk.END))
-clear_button.pack(pady=20)
-
-text_result = tk.Text(app, wrap=tk.WORD, width=50, height=15)
-text_result.pack(pady=10)
-
-text_result.insert(tk.END, "[LOG]Warming up connection....\n")
-try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
-    try:
-        if s.fileno() != -1:
-            s.shutdown(socket.SHUT_RDWR)
-    except OSError as e:
-        print(f"[LOG]Error during shutdown: {e}")
-    finally:
-        s.close()  
-    text_result.insert(tk.END, "[LOG]Ready to work!\n")
-except:
-    text_result.insert(tk.END, "[LOG]Connection failed...\n")
+    def run(self) -> None:
+        self.root.mainloop()
 
 
-app.mainloop()
-
-p.terminate()
-
+if __name__ == "__main__":
+    StreamingClientApp().run()

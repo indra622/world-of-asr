@@ -64,7 +64,7 @@ Phase 1 (✅ Complete)  → Phase 2 (✅ Complete)  → Phase 3 (✅ Complete)  
 
 **Timeline**: January-February 2026
 **Status**: ✅ Complete
-**Completion Report**: `docs/PHASE2_COMPLETION.md`
+**Completion Report**: `docs/PHASE2_COMPLETION_REPORT.md`
 
 ### Goals
 - Integrate multiple ASR model providers
@@ -100,7 +100,7 @@ Phase 1 (✅ Complete)  → Phase 2 (✅ Complete)  → Phase 3 (✅ Complete)  
 
 **Timeline**: February 2026
 **Status**: ✅ Complete
-**Completion Report**: `docs/PHASE3_COMPLETION.md`
+**Completion Report**: `docs/PHASE3_COMPLETION_REPORT.md`
 
 ### Goals
 - Non-blocking async transcription

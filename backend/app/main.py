@@ -74,7 +74,8 @@ async def health_check():
         async with AsyncSessionLocal() as db:
             await db.execute(text("SELECT 1"))
         db_status = "connected"
-    except Exception:
+    except Exception as exc:
+        logger.warning("Health check DB query failed: %s", exc)
         db_status = "unavailable"
 
     from app.config import settings as cfg

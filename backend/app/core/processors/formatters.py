@@ -8,7 +8,7 @@ import os
 import re
 import sys
 import zlib
-from typing import Callable, Optional, TextIO, Dict, Any
+from typing import Callable, Optional, TextIO, Dict, Any, Union, List
 
 # 시스템 인코딩 처리 (woa/utils.py:127-140)
 system_encoding = sys.getdefaultencoding()
@@ -102,7 +102,7 @@ class WriteTXT(ResultWriter):
 
     def write_result(self, result: dict, file: TextIO, options: dict):
         for segment in result["segments"]:
-            print(segment["text"].strip(), file=file, flush=True)
+            file.write(f"{segment['text'].strip()}\n")
 
 
 class SubtitlesWriter(ResultWriter):
@@ -234,9 +234,9 @@ class WriteVTT(SubtitlesWriter):
     decimal_marker: str = "."
 
     def write_result(self, result: dict, file: TextIO, options: dict):
-        print("WEBVTT\n", file=file)
+        file.write("WEBVTT\n\n")
         for start, end, text in self.iterate_result(result, options):
-            print(f"{start} --> {end}\n{text}\n", file=file, flush=True)
+            file.write(f"{start} --> {end}\n{text}\n\n")
 
 
 class WriteSRT(SubtitlesWriter):
@@ -253,7 +253,7 @@ class WriteSRT(SubtitlesWriter):
         for i, (start, end, text) in enumerate(
             self.iterate_result(result, options), start=1
         ):
-            print(f"{i}\n{start} --> {end}\n{text}\n", file=file, flush=True)
+            file.write(f"{i}\n{start} --> {end}\n{text}\n\n")
 
 
 class WriteTSV(ResultWriter):
@@ -265,11 +265,12 @@ class WriteTSV(ResultWriter):
     extension: str = "tsv"
 
     def write_result(self, result: dict, file: TextIO, options: dict):
-        print("start", "end", "text", sep="\t", file=file)
+        file.write("start\tend\ttext\n")
         for segment in result["segments"]:
-            print(round(1000 * segment["start"]), file=file, end="\t")
-            print(round(1000 * segment["end"]), file=file, end="\t")
-            print(segment["text"].strip().replace("\t", " "), file=file, flush=True)
+            start_ms = round(1000 * segment["start"])
+            end_ms = round(1000 * segment["end"])
+            clean_text = segment["text"].strip().replace("\t", " ")
+            file.write(f"{start_ms}\t{end_ms}\t{clean_text}\n")
 
 
 class WriteJSON(ResultWriter):
@@ -286,7 +287,7 @@ class WriteJSON(ResultWriter):
 
 def get_writer(
     output_format: str, output_dir: str
-) -> Callable[[dict, str, dict], str]:
+) -> Callable[[dict, str, dict], Union[str, List[str]]]:
     """
     출력 포맷에 맞는 작성기 반환
 

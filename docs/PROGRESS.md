@@ -196,3 +196,143 @@ After thorough code review, discovered that **all Quick Win issues have already 
 - Performance optimization (batch processing, GPU utilization)
 - Security hardening (streaming client refactoring)
 - Monitoring and observability setup
+
+## 2026-02-16 (iterative improvement cycle)
+
+### Changed
+- Improved optional model import handling in `backend/app/core/models/manager.py`:
+  - Consolidated repetitive optional-import blocks into `_load_optional_model()` helper.
+  - Added explicit logging for optional dependency import failures to improve observability.
+  - Fixed Triton model construction path to avoid keyword mismatch and preserve selected model type.
+- Improved transcription request parameter handling in `backend/app/services/transcription.py`:
+  - Replaced defensive `getattr(...)` usage with direct schema-backed attribute access.
+  - Replaced silent `except: pass`-style behavior on postprocess serialization with typed exception handling and warning logs.
+- Improved health check logging in `backend/app/main.py`:
+  - DB connectivity failures now emit warning logs in `/health` path for easier debugging.
+- Refactored formatter writers in `backend/app/core/processors/formatters.py`:
+  - Replaced `print(..., file=...)` based file writes with explicit `file.write(...)` paths.
+  - Kept output format behavior intact while reducing implicit I/O behavior.
+- Fixed schema example literal in `backend/app/schemas/transcription.py`:
+  - Replaced non-Python booleans (`true/false`) with `True/False`.
+
+### Verification
+- Ran unit tests: `python -m pytest tests/unit/test_basic.py tests/unit/test_formatters.py -v` (in `backend/`) — passed.
+- LSP command execution check:
+  - `lsp_diagnostics` is currently unavailable in this environment because `basedpyright-langserver` is not installed.
+  - Apply-time diagnostics still report many pre-existing SQLAlchemy typing mismatches in ORM-heavy files; no new runtime regressions observed in executed tests.
+
+### Next Iteration Focus
+- Continue P0 streaming hardening (`sock_streaming_client.py`, `streaming_audio_save.py`, `multi_triton_streaming.py`):
+  - Replace bare `except` blocks with typed exceptions + logging.
+  - Introduce deterministic resource lifecycle for socket/audio stream teardown.
+  - Remove global mutable state and move toward instance-based client design for thread safety.
+
+## 2026-02-16 (iterative improvement cycle - streaming hardening)
+
+### Changed
+- Refactored `sock_streaming_client.py` into instance-based architecture:
+  - Replaced global socket/thread/audio state with `StreamingClientApp` object state.
+  - Added queue-based UI message bridge to reduce direct UI mutation from worker threads.
+  - Added explicit connection warmup, deterministic socket shutdown, and close-handler cleanup path.
+  - Added typed exception handling for send/receive/connect flows.
+- Hardened `streaming_audio_save.py` runtime behavior:
+  - Moved side-effectful runtime setup into `main()` and added deterministic stream/device teardown.
+  - Added explicit output directory creation and typed audio-device error handling.
+  - Preserved original VAD capture behavior while removing import-time device allocation.
+- Hardened `multi_triton_streaming.py` process lifecycle:
+  - Added environment-driven Triton endpoint/model configuration.
+  - Added guarded pipe receive loop with EOF/type handling and explicit END signaling.
+  - Added fail-fast handling for Triton client/VAD model initialization and deterministic cleanup of pipe/audio resources.
+
+### Verification
+- Compiled updated streaming scripts:
+  - `python -m compileall sock_streaming_client.py streaming_audio_save.py multi_triton_streaming.py` (repo root) — passed.
+- Re-ran core backend unit tests for regression check:
+  - `python -m pytest tests/unit/test_basic.py tests/unit/test_formatters.py -v` (in `backend/`) — passed (26/26).
+- Static diagnostics note:
+  - LSP remains unavailable due to missing `basedpyright-langserver`.
+  - Tool diagnostics reported unresolved optional imports (`soundfile`, `tritonclient.http`) in local environment; scripts remain byte-compiled successfully.
+
+### Next Iteration Focus
+- Add focused tests for streaming script boundaries (connection failure, shutdown path, END-signal path).
+- Normalize logging strategy between backend modules (`logging`) and standalone scripts (`print` -> structured logging).
+- Evaluate extracting shared streaming primitives (socket lifecycle, chunk loop, VAD segment buffering) into reusable utility module.
+
+## 2026-02-16 (documentation IA refresh)
+
+### Changed
+- Rewrote root `README.md` for onboarding-first flow:
+  - Added 5-minute start path and mode selection guidance (UI/API/streaming).
+  - Added explicit end-to-end project flow and entrypoint map.
+  - Reorganized docs map into newcomer reading order.
+  - Corrected completion report references to `PHASE2_COMPLETION_REPORT.md` and `PHASE3_COMPLETION_REPORT.md`.
+- Rewrote `backend/README.md` to match current architecture:
+  - Replaced stale phase-oriented content with current backend purpose, API flow, and directory map.
+  - Linked related operational docs instead of duplicating outdated status blocks.
+- Expanded `docs/RUNBOOK.md`:
+  - Added startup expectations, health interpretation, env basics, and troubleshooting section.
+- Reorganized `docs/API_USAGE.md`:
+  - Structured by real execution flow (upload -> transcribe -> poll -> download).
+  - Clarified provider/status endpoints and simplified payload guidance.
+- Fixed roadmap reference consistency in `docs/ROADMAP.md`:
+  - Updated completion report filenames to existing `_REPORT` files.
+
+### Verification
+- Link consistency check: no stale `PHASE2_COMPLETION.md`/`PHASE3_COMPLETION.md` references remain.
+- Existing `_REPORT` references confirmed in `README.md` and `docs/ROADMAP.md`.
+- No runtime code behavior changes introduced in this documentation-focused iteration.
+
+### Next Iteration Focus
+- Add `docs/TROUBLESHOOTING.md` for deeper operational failures and environment-specific playbooks.
+- Add a compact API quickstart snippet set (curl-first) to `README.md` for backend-first users.
+- Reconcile remaining phase/state narratives between `docs/ISSUES.md`, `docs/ROADMAP.md`, and `docs/PROGRESS.md`.
+
+## 2026-02-16 (documentation IA refresh - iteration 2)
+
+### Changed
+- Added `docs/TROUBLESHOOTING.md` as a dedicated failure-recovery playbook:
+  - Included quick triage flow and mode-specific failure patterns (UI/API/streaming).
+  - Added concrete checks for env/dependency, backend health, upload/job failures, GPU/provider issues.
+- Strengthened `README.md` onboarding clarity:
+  - Added Mermaid architecture flow diagram for 3 runtime modes.
+  - Added curl-based "API Quickstart (60 seconds)" path for backend-first users.
+  - Updated newcomer reading order to include troubleshooting early.
+- Improved cross-doc navigation consistency:
+  - Added direct references between `docs/RUNBOOK.md`, `docs/API_USAGE.md`, and `docs/TROUBLESHOOTING.md`.
+  - Clarified when to use runbook vs API guide vs troubleshooting guide.
+
+### Verification
+- Cross-reference check confirmed `docs/TROUBLESHOOTING.md` is linked from:
+  - `README.md`
+  - `docs/RUNBOOK.md`
+  - `docs/API_USAGE.md`
+- No new stale phase-completion filename references introduced.
+- This iteration is documentation-only; runtime code behavior unchanged.
+
+### Next Iteration Focus
+- Add one-page "path chooser" table (UI/API/streaming) with decision criteria and expected setup time.
+- Add backend API error response examples (4xx/5xx) to `docs/API_USAGE.md`.
+- Align issue severity language across `docs/ISSUES.md` and troubleshooting guidance.
+
+## 2026-02-16 (documentation IA refresh - iteration 3)
+
+### Changed
+- Added a one-page runtime decision table to `README.md`:
+  - Compared UI/API/streaming paths by use-case, expected setup time, and first command.
+  - Added explicit path selection guidance sentence to reduce newcomer decision friction.
+- Expanded `docs/API_USAGE.md` with API failure examples:
+  - Added structured 400/404/422/500 response guidance and typical causes.
+  - Added a direct action path from API failure to job/error inspection and troubleshooting docs.
+- Aligned severity language between operational docs:
+  - Added `P0-P3` priority mapping section to `docs/TROUBLESHOOTING.md` and linked it to `docs/ISSUES.md` terminology.
+  - Added per-scenario priority hints in major troubleshooting sections for triage consistency.
+
+### Verification
+- Confirmed new troubleshooting cross-links are present in `README.md`, `docs/RUNBOOK.md`, and `docs/API_USAGE.md`.
+- Confirmed no stale completion-report filename references were introduced.
+- This iteration remains documentation-only; runtime behavior unchanged.
+
+### Next Iteration Focus
+- Add endpoint-specific error body examples for upload/result routes (not only generic errors).
+- Add minimal Korean quickstart variant section if bilingual onboarding becomes a requirement.
+- Add docs maintenance checklist (link integrity + stale status scan) to release process.

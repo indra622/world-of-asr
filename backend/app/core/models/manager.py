@@ -3,40 +3,38 @@
 
 매 요청마다 모델을 재로드하지 않고 메모리에 캐싱하여 재사용
 """
-from typing import Dict, Optional
+from importlib import import_module
+from typing import Dict, Optional, Type
 import threading
+import logging
 from app.core.models.base import ASRModelBase
 from app.core.models.faster_whisper import FasterWhisperModel
 from app.core.models.whisper_original import OriginWhisperModel
 from app.core.models.fast_conformer import FastConformerModel
 from app.config import settings
-try:
-    from app.core.models.google_stt import GoogleSTTModel  # optional
-except Exception:  # pragma: no cover
-    GoogleSTTModel = None
-try:
-    from app.core.models.qwen_asr import QwenASRModel  # optional
-except Exception:  # pragma: no cover
-    QwenASRModel = None
-try:
-    from app.core.models.nemo_ctc import NemoCTCModel  # optional
-except Exception:  # pragma: no cover
-    NemoCTCModel = None
-try:
-    from app.core.models.nemo_rnnt import NemoRNNTModel  # optional
-except Exception:  # pragma: no cover
-    NemoRNNTModel = None
-try:
-    from app.core.models.triton_asr import TritonASRModel  # optional
-except Exception:  # pragma: no cover
-    TritonASRModel = None
-try:
-    from app.core.models.riva_asr import RivaASRModel  # optional
-except Exception:  # pragma: no cover
-    RivaASRModel = None
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _load_optional_model(module_path: str, class_name: str) -> Optional[Type[ASRModelBase]]:
+    try:
+        module = import_module(module_path)
+        model_class = getattr(module, class_name)
+        return model_class
+    except ImportError as exc:  # pragma: no cover
+        logger.warning("Optional model unavailable: %s (%s)", class_name, exc)
+        return None
+    except Exception:  # pragma: no cover
+        logger.exception("Failed to load optional model %s from %s", class_name, module_path)
+        return None
+
+
+GoogleSTTModel = _load_optional_model("app.core.models.google_stt", "GoogleSTTModel")
+QwenASRModel = _load_optional_model("app.core.models.qwen_asr", "QwenASRModel")
+NemoCTCModel = _load_optional_model("app.core.models.nemo_ctc", "NemoCTCModel")
+NemoRNNTModel = _load_optional_model("app.core.models.nemo_rnnt", "NemoRNNTModel")
+TritonASRModel = _load_optional_model("app.core.models.triton_asr", "TritonASRModel")
+RivaASRModel = _load_optional_model("app.core.models.riva_asr", "RivaASRModel")
 
 
 class ModelManager:
@@ -63,7 +61,7 @@ class ModelManager:
     ```
     """
 
-    _instance: Optional['ModelManager'] = None
+    _instance = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -77,10 +75,16 @@ class ModelManager:
                 # Double-checked locking
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._models: Dict[str, ASRModelBase] = {}
-                    cls._instance._model_lock = threading.RLock()
                     logger.info("ModelManager singleton instance created")
         return cls._instance
+
+    def __init__(self):
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
+        self._models: Dict[str, ASRModelBase] = {}
+        self._model_lock = threading.RLock()
+        self._initialized = True
 
     def get_model(
         self,
@@ -185,7 +189,9 @@ class ModelManager:
                 raise ValueError("Triton disabled. Set enable_triton=True")
             if TritonASRModel is None:
                 raise ImportError("TritonASRModel not available")
-            return TritonASRModel(model_type=model_type, model_size=model_size, device=device)
+            triton_model = TritonASRModel(model_size, device)
+            triton_model.model_type = model_type
+            return triton_model
         elif model_type == "nvidia_riva":
             if not settings.enable_riva:
                 raise ValueError("Riva disabled. Set enable_riva=True")

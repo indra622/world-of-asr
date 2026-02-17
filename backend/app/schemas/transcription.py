@@ -101,7 +101,7 @@ class PostprocessOptions(BaseModel):
 
     class Config:
         json_schema_extra = {
-            "example": {"pnc": true, "vad": false}
+            "example": {"pnc": True, "vad": False}
         }
 
 

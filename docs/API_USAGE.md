@@ -1,8 +1,33 @@
-# API Usage – World-of-ASR Backend
+# API Usage - World-of-ASR Backend
 
-## Create Transcription
+This guide covers the end-to-end REST flow:
+1. upload files
+2. create transcription job
+3. poll job status
+4. download results
 
-POST `/api/v1/transcribe`
+Base URL (local): `http://localhost:8000`
+
+Before using this guide, start backend and verify health using `docs/RUNBOOK.md`.
+
+## 1) Upload Files
+
+`POST /api/v1/upload` (multipart/form-data)
+
+Notes:
+- up to 10 files per request
+- default max size: 500MB each
+- audio/video MIME types only
+
+Example response:
+
+```json
+{ "file_ids": ["uuid-1"], "uploaded_at": "..." }
+```
+
+## 2) Create Transcription Job
+
+`POST /api/v1/transcribe`
 
 Payload example:
 
@@ -27,22 +52,43 @@ Payload example:
 ```
 
 Notes:
-- `language`: use an ISO code (e.g., `ko`, `en`) or `auto` for automatic language detection.
-- `parameters.initial_prompt`: forwarded to models that support prompts (e.g., Whisper variants).
-- `force_alignment`: when true and the selected provider doesn’t return word timings, the service may apply a forced alignment pass (provider dependent).
-- `postprocess`: optional post-processing chain, currently supports `pnc` (punctuation & capitalization) and `vad` (voice activity detection). Stubs are wired and can be swapped with real models.
+- `language`: ISO code (`ko`, `en`) or `auto`
+- `parameters.initial_prompt`: forwarded to prompt-capable models
+- `force_alignment`: runs alignment pass when word timings are missing (provider-dependent)
+- `postprocess`: optional chain (`pnc`, `vad`)
 
-## Providers
+## 3) Poll Job Status
 
-- Local providers (free by default):
-  - `origin_whisper`, `faster_whisper`, `fast_conformer` (requires Docker container)
-- External providers (optional with API keys; disabled by default):
-  - `google_stt` – set `enable_google=true` and credentials via env/ADC.
-  - `qwen_asr` – set `enable_qwen=true` and provide API key/endpoint.
+`GET /api/v1/transcribe/jobs/{job_id}`
 
-Check provider availability:
+Returns:
+- `status` (`queued`, `processing`, `completed`, `failed`)
+- `progress` (0-100)
+- timestamps and error field
 
-GET `/health`
+## 4) Download Results
+
+Single format:
+
+`GET /api/v1/results/{job_id}/{format}`
+
+`{format}` in `vtt|srt|json|txt|tsv`
+
+Result summary:
+
+`GET /api/v1/results/{job_id}`
+
+## Providers and Capabilities
+
+Provider/status listing:
+
+`GET /api/v1/transcribe/providers`
+
+Health and provider flags:
+
+`GET /health`
+
+Example health response:
 
 ```json
 {
@@ -55,47 +101,63 @@ GET `/health`
 }
 ```
 
-## Upload Files
+Provider setup details:
+- `docs/PROVIDERS.md`
 
-POST `/api/v1/upload` (multipart/form-data)
+When requests fail, see:
+- `docs/TROUBLESHOOTING.md`
 
-- Accepts up to 10 files; defaults: max 500MB each.
-- Audio/Video MIME types only.
+## Common Error Responses
 
-Response:
+### 400 Bad Request
 
-```json
-{ "file_ids": ["uuid-1"], "uploaded_at": "..." }
-```
+Typical cause:
+- business rule validation failed (unsupported model/provider combination, disabled feature)
 
-## Get Job Status
-
-GET `/api/v1/transcribe/jobs/{job_id}`
-
-Returns job status, progress, timestamps, and error (if any).
-
-## Download Results
-
-GET `/api/v1/results/{job_id}/{format}` where `{format}` is one of `vtt|srt|json|txt|tsv`.
-- List providers/models/languages
-
-GET `/api/v1/transcribe/providers`
+Example:
 
 ```json
 {
-  "providers": {
-    "origin_whisper": true,
-    "faster_whisper": true,
-    "fast_conformer": true,
-    "google_stt": false,
-    "qwen_asr": false
-  },
-  "models": {
-    "origin_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
-    "faster_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
-    "fast_conformer": ["fast-conformer"]
-  },
-  "languages": ["auto", "en", "ko", "ja", "zh", "de", "es", "fr", "ru", "it", "pt", "vi", "th"],
-  "notes": "External providers require keys; see docs/PROVIDERS.md"
+  "detail": "Google STT is disabled. Set enable_google=true"
 }
 ```
+
+### 404 Not Found
+
+Typical cause:
+- unknown `job_id` or missing result file
+
+Example:
+
+```json
+{
+  "detail": "Job not found"
+}
+```
+
+### 422 Unprocessable Entity
+
+Typical cause:
+- request schema mismatch (missing required fields, invalid enum value)
+
+Example:
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "model_type"],
+      "msg": "Input should be one of: origin_whisper, faster_whisper, ...",
+      "type": "enum"
+    }
+  ]
+}
+```
+
+### 500 Internal Server Error
+
+Typical cause:
+- unexpected runtime exception during background processing or file operations
+
+Action:
+- check backend logs and then inspect `GET /api/v1/transcribe/jobs/{job_id}` for the job-level error field

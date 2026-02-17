@@ -1,123 +1,206 @@
 # World-of-ASR
 
-Speech-to-text workspace combining interactive Gradio tools, a FastAPI backend, and optional streaming.
+Speech-to-text workspace with three runtime modes:
+- local interactive UI (Gradio)
+- async REST backend (FastAPI)
+- experimental streaming pipeline
 
-## Repository Structure
+## Start Here (5 minutes)
 
-- `app.py`: Gradio UI for offline transcription (Whisper, Faster-Whisper, NeMo FastConformer via Docker).
-- `backend/`: FastAPI backend (file upload, job orchestration, result formatting, DB via SQLAlchemy).
-- `streaming/`: Whisper streaming server and helpers (based on ufal/whisper_streaming).
-- `woa/`: Legacy utilities (formatters, diarization, event handlers) reused by new modules.
-- `docs/`: Documentation (issues, progress, archived reports).
+1) Clone and install base dependencies
 
-## Installation
-
-Prerequisites
-- FFmpeg: `sudo apt-get install -y ffmpeg` (macOS: `brew install ffmpeg`)
-- Python: 3.10+ (3.12 등 최신 버전 사용 가능)
-- Optional: NVIDIA GPU + CUDA/cuDNN (Faster-Whisper/NeMo 가속 시)
-
-Quickstart (venv)
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Optional (conda)
-```bash
-conda create -n woa python=3.12 -y
-conda activate woa
-pip install -r requirements.txt
+2) Choose one path
+- UI path: `python app.py`
+- API path: `bash scripts/dev_server.sh`
+- Streaming path: `pip install -r requirements-streaming.txt && python streaming/whisper_online_server.py`
+
+3) Verify quickly
+- UI: open Gradio URL from terminal
+- API: open `http://localhost:8000/docs`
+- Health: `curl http://localhost:8000/health`
+
+## Path Chooser
+
+| Path | Best for | Setup time | First command |
+|---|---|---:|---|
+| Gradio UI | quick local experiments, model comparison | 3-5 min | `python app.py` |
+| FastAPI API | app integration, async job workflow | 5-10 min | `bash scripts/dev_server.sh` |
+| Streaming | near real-time experimentation | 10-15 min | `python streaming/whisper_online_server.py` |
+
+Choose Gradio if you are evaluating quality quickly, choose FastAPI if you need stable endpoint-based flow, and choose Streaming only when real-time behavior is the main requirement.
+
+## Project Flow
+
+```mermaid
+flowchart LR
+  A[Audio Input] --> B{Runtime Mode}
+  B --> C[Gradio UI app.py]
+  B --> D[FastAPI backend/app/main.py]
+  B --> E[Streaming streaming/whisper_online_server.py]
+  D --> F[/api/v1/upload]
+  F --> G[/api/v1/transcribe]
+  G --> H[Background processing]
+  H --> I[/api/v1/results]
 ```
 
-GPU (optional)
-- PyTorch를 GPU로 사용하려면 PyTorch 설치 가이드를 따라 CUDA 빌드를 먼저 설치한 뒤 나머지 요구사항을 설치하세요.
-  ```bash
-  # 예시: CUDA 12.1 (환경에 맞게 수정)
-  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-  pip install -r requirements.txt
-  ```
+```text
+Audio file
+  -> upload (FastAPI /api/v1/upload)
+  -> create transcription job (/api/v1/transcribe)
+  -> background processing (model + optional diarization/alignment/postprocess)
+  -> formatted outputs (vtt/srt/json/txt/tsv)
+  -> download (/api/v1/results/{job_id}/{format})
+```
 
-### Optional: Backend (FastAPI)
+Main entrypoints:
+- `app.py`: Gradio UI for local transcription workflows
+- `backend/app/main.py`: FastAPI app entrypoint
+- `streaming/whisper_online_server.py`: streaming server entrypoint
 
-```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env  # update values as needed
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-# Swagger: http://localhost:8000/docs
+## API Quickstart (60 seconds)
 
-또는 편의 스크립트 사용:
+Start backend:
+
 ```bash
 bash scripts/dev_server.sh
 ```
-```
 
-### Optional: NeMo FastConformer (Docker)
-
-```bash
-cd docker
-docker build -t woa:v1.0 .
-docker run -d --gpus 0 -it --name nvidia-nemo -v /tmp/gradio:/tmp/gradio woa:v1.0 tail -f /dev/null
-```
-
-Shell init (example):
+Upload one file:
 
 ```bash
-export IP_ADDR=$(hostname -i)
-export CONTAINER_ID=$(docker ps -q -f name=nvidia-nemo)
-export HF_TOKEN="[YOUR_HF_TOKEN]"
+curl -s -X POST "http://localhost:8000/api/v1/upload" \
+  -F "files=@samples/example.wav"
 ```
 
-## Streaming
-
-Based on [ufal/whisper_streaming](https://github.com/ufal/whisper_streaming)
+Then use the returned `file_ids[0]` in a transcription request:
 
 ```bash
-pip install -r requirements-streaming.txt
-cd streaming && python whisper_online_server.py
+curl -s -X POST "http://localhost:8000/api/v1/transcribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_ids": ["<file-id>"],
+    "model_type": "faster_whisper",
+    "model_size": "large-v3",
+    "language": "auto",
+    "device": "cpu",
+    "output_formats": ["vtt"]
+  }'
 ```
 
-## Running Gradio App
+Poll status:
+
+```bash
+curl -s "http://localhost:8000/api/v1/transcribe/jobs/<job-id>"
+```
+
+See full request/response examples in `docs/API_USAGE.md`.
+
+## Repository Guide
+
+- `app.py`: Gradio interface and local pipeline wiring
+- `backend/`: API service, job orchestration, DB models, provider adapters
+- `streaming/`: online streaming server and helpers
+- `woa/`: legacy utilities reused by current modules
+- `scripts/`: developer scripts (server start, sample fetch, smoke run)
+- `docs/`: roadmap, issues, runbook, API usage, provider docs
+
+## Runtime Modes
+
+### 1) Local UI (Gradio)
 
 ```bash
 python app.py
 ```
 
-Backend API 탭을 통해 FastAPI 백엔드를 직접 호출해 업로드/전사/다운로드를 수행할 수도 있습니다.
+Use when:
+- you want quick local transcription tests
+- you want to compare model options interactively
 
-## Key Features
+### 2) Backend API (FastAPI)
 
-- Multi-provider ASR architecture: local Whisper/Faster-Whisper/NeMo (free), optional Google/Qwen via API keys.
-- Language selection with `auto` detection.
-- Initial prompt forwarding to supported models.
-- Optional forced alignment step (Qwen alignment planned) to enrich word timings.
+```bash
+# from repo root
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+bash scripts/dev_server.sh
+```
 
-## Documentation
+Alternative manual run:
 
-### Core Documentation
-- **[Project Roadmap](docs/ROADMAP.md)** - Phase timeline, current status, and future plans
-- **[Progress Log](docs/PROGRESS.md)** - Chronological log of changes and decisions
-- **[Issues & Remediation](docs/ISSUES.md)** - Known issues with priority-based tracking (P0-P3)
+```bash
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-### Technical Documentation
-- **[API Usage Guide](docs/API_USAGE.md)** - REST API endpoints and usage examples
-- **[External Providers](docs/PROVIDERS.md)** - Enabling Google, Qwen, NVIDIA providers
-- **[Runbook](docs/RUNBOOK.md)** - Operational procedures and troubleshooting
-- **[Samples & Testing](docs/SAMPLES.md)** - Test samples and smoke test script
+Use when:
+- you need async job processing and API integration
+- you need upload/status/result endpoints
 
-### Integration Plans
-- **[ASR Expansion Plan](docs/ASR_EXPANSION_PLAN.md)** - Future ASR provider integrations
-- **[NVIDIA Integration](docs/NVIDIA_INTEGRATION_PLAN.md)** - NeMo, Triton, Riva integration
-- **[Qwen Alignment Plan](docs/QWEN_ALIGNMENT_PLAN.md)** - Forced alignment implementation
+### 3) Streaming (experimental)
 
-### Completion Reports
-- **[Phase 2 Completion](docs/PHASE2_COMPLETION.md)** - Model integration completion
-- **[Phase 3 Completion](docs/PHASE3_COMPLETION.md)** - Async API completion
+```bash
+pip install -r requirements-streaming.txt
+python streaming/whisper_online_server.py
+```
+
+Use when:
+- you are testing near real-time transcription behavior
+- you are working on streaming-side improvements
+
+## Model and Provider Status
+
+- Stable local path:
+  - `origin_whisper`
+  - `faster_whisper`
+  - `fast_conformer` (Docker-dependent)
+- Optional external providers (feature-flag driven, partial/stub state in some adapters):
+  - `google_stt`
+  - `qwen_asr`
+  - NVIDIA family (`nemo_*`, `triton_*`, `nvidia_riva`)
+
+Check current provider flags via:
+- `GET /health`
+- `GET /api/v1/transcribe/providers`
+
+## Documentation Map
+
+If you are new, read in this order:
+
+1. `docs/RUNBOOK.md` - practical run commands
+2. `docs/API_USAGE.md` - endpoint usage examples
+3. `docs/TROUBLESHOOTING.md` - failure patterns and fixes
+4. `docs/ROADMAP.md` - where the project is heading
+5. `docs/ISSUES.md` - known gaps and priorities
+6. `docs/PROGRESS.md` - chronological implementation log
+
+Integration and planning docs:
+- `docs/PROVIDERS.md`
+- `docs/ASR_EXPANSION_PLAN.md`
+- `docs/NVIDIA_INTEGRATION_PLAN.md`
+- `docs/QWEN_ALIGNMENT_PLAN.md`
+
+Completion reports:
+- `docs/PHASE2_COMPLETION_REPORT.md`
+- `docs/PHASE3_COMPLETION_REPORT.md`
+
+## Samples and Smoke Test
+
+```bash
+bash scripts/fetch_samples.sh
+python scripts/run_samples.py --host http://localhost:8000 \
+  --files samples/example.wav --model faster_whisper --model-size large-v3 \
+  --language auto --format vtt --out samples/output
+```
 
 ## Notes
 
-- For security, do not commit `backend/.env`. Use `backend/.env.example` as a template.
-- NVIDIA Triton serving reference: [Triton-ASR](https://github.com/shs131566/triton-asr)
+- Do not commit `backend/.env`; use `backend/.env.example`.
+- Streaming and GPU-related paths require additional system dependencies.
+- Several standalone streaming scripts are under active hardening/refactoring.

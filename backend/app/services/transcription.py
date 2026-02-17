@@ -65,16 +65,17 @@ class TranscriptionService:
             # Job 생성
             # force_alignment/alignment_provider은 parameters에 함께 저장해 처리
             _params = request.parameters.model_dump() if request.parameters else {}
-            if getattr(request, "force_alignment", False):
+            if request.force_alignment:
                 _params["force_alignment"] = True
-                if getattr(request, "alignment_provider", None):
+                if request.alignment_provider:
                     _params["alignment_provider"] = request.alignment_provider
             # 후처리 옵션 전달
-            if getattr(request, "postprocess", None) is not None:
+            postprocess_options = request.postprocess
+            if postprocess_options is not None:
                 try:
-                    _params["postprocess"] = request.postprocess.model_dump()
-                except Exception:
-                    pass
+                    _params["postprocess"] = postprocess_options.model_dump()
+                except (AttributeError, TypeError, ValueError) as exc:
+                    logger.warning("Failed to serialize postprocess options: %s", exc)
 
             job = Job(
                 id=str(uuid.uuid4()),
