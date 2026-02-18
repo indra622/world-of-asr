@@ -19,7 +19,8 @@ pip install -r requirements.txt
 2) Choose one path
 - UI path: `python app.py`
 - API path: `bash scripts/dev_server.sh`
-- Streaming path: `pip install -r requirements-streaming.txt && python streaming/whisper_online_server.py`
+- Streaming path: `pip install -r requirements-streaming.txt && bash scripts/streaming_server.sh`
+- Streaming WebSocket path: `pip install -r requirements-streaming.txt && bash scripts/streaming_ws_server.sh`
 
 3) Verify quickly
 - UI: open Gradio URL from terminal
@@ -147,7 +148,13 @@ Use when:
 
 ```bash
 pip install -r requirements-streaming.txt
-python streaming/whisper_online_server.py
+bash scripts/streaming_server.sh
+```
+
+WebSocket transport server:
+
+```bash
+bash scripts/streaming_ws_server.sh
 ```
 
 Use when:
@@ -164,6 +171,7 @@ Use when:
   - `google_stt`
   - `qwen_asr`
   - NVIDIA family (`nemo_*`, `triton_*`, `nvidia_riva`)
+  - `hf_auto_asr` (Hugging Face AutoModel, `model_size`에 모델 ID 전달)
 
 Check current provider flags via:
 - `GET /health`
@@ -175,10 +183,11 @@ If you are new, read in this order:
 
 1. `docs/RUNBOOK.md` - practical run commands
 2. `docs/API_USAGE.md` - endpoint usage examples
-3. `docs/TROUBLESHOOTING.md` - failure patterns and fixes
-4. `docs/ROADMAP.md` - where the project is heading
-5. `docs/ISSUES.md` - known gaps and priorities
-6. `docs/PROGRESS.md` - chronological implementation log
+3. `docs/STREAMING_GUIDE.md` - streaming architecture and active-use runbook
+4. `docs/TROUBLESHOOTING.md` - failure patterns and fixes
+5. `docs/ROADMAP.md` - where the project is heading
+6. `docs/ISSUES.md` - known gaps and priorities
+7. `docs/PROGRESS.md` - chronological implementation log
 
 Integration and planning docs:
 - `docs/PROVIDERS.md`

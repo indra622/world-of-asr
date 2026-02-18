@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     qwen_api_key: str = ""
     qwen_endpoint: str = ""
 
+    # Hugging Face AutoModel ASR
+    enable_hf_auto_asr: bool = True
+    hf_auto_default_model: str = "openai/whisper-small"
+
     # NVIDIA providers
     enable_nemo: bool = False
     nemo_container_id: str = ""  # optional alternative to FastConformer container

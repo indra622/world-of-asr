@@ -39,6 +39,7 @@ router = APIRouter(prefix="/transcribe", tags=["transcription"])
     - `faster_whisper`: CTranslate2 기반 고속 전사
     - `origin_whisper`: whisper-timestamped (단어 타임스탬프)
     - `fast_conformer`: NeMo FastConformer (Docker 필요)
+    - `hf_auto_asr`: Hugging Face AutoModel 기반 범용 ASR (model_size에 HF 모델 ID 사용)
 
     **출력 포맷:**
     - `vtt`: WebVTT 자막
@@ -205,12 +206,14 @@ async def list_providers():
         "triton_ctc": settings.enable_triton,
         "triton_rnnt": settings.enable_triton,
         "nvidia_riva": settings.enable_riva,
+        "hf_auto_asr": settings.enable_hf_auto_asr,
     }
 
     models = {
         "origin_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
         "faster_whisper": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
-        "fast_conformer": ["fast-conformer"]
+        "fast_conformer": ["fast-conformer"],
+        "hf_auto_asr": ["openai/whisper-small", "openai/whisper-base", "facebook/wav2vec2-base-960h"],
     }
 
     languages = [

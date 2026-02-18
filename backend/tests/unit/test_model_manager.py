@@ -180,7 +180,22 @@ class TestModelManager:
         assert info["origin_whisper"] == 0
         assert info["faster_whisper"] == 0
         assert info["fast_conformer"] == 0
+        assert info["hf_auto_asr"] == 0
         assert info["total"] == 0
+
+    @patch('app.core.models.manager.HFAutoASRModel')
+    def test_hf_auto_asr_model_creation(self, mock_hf_auto_asr_class):
+        mock_model = Mock(spec=ASRModelBase)
+        mock_hf_auto_asr_class.return_value = mock_model
+
+        manager = ModelManager()
+        manager.clear_cache()
+
+        model = manager.get_model("hf_auto_asr", "openai/whisper-small", "cpu")
+
+        mock_hf_auto_asr_class.assert_called_once_with("openai/whisper-small", "cpu")
+        mock_model.load_model.assert_called_once()
+        assert model is mock_model
 
     def test_unknown_model_type_raises_error(self):
         """알 수 없는 모델 타입은 ValueError 발생"""

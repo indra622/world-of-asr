@@ -33,6 +33,35 @@ Expected result:
 - backend available at `http://localhost:8000`
 - Swagger UI at `http://localhost:8000/docs`
 
+## Streaming Startup (TCP socket)
+
+Install dependencies:
+
+```bash
+pip install -r requirements-streaming.txt
+```
+
+Start streaming server:
+
+```bash
+bash scripts/streaming_server.sh
+```
+
+Start WebSocket streaming server:
+
+```bash
+bash scripts/streaming_ws_server.sh
+```
+
+Start streaming client (new terminal):
+
+```bash
+bash scripts/streaming_client.sh
+```
+
+Reference:
+- `docs/STREAMING_GUIDE.md`
+
 ## Health Check
 
 ```bash

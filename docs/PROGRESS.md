@@ -378,3 +378,74 @@ After thorough code review, discovered that **all Quick Win issues have already 
 ### Next Iteration Focus
 - Extend docs checker to optionally validate external links in non-blocking mode.
 - Split CI into required vs optional docs quality gates if runtime matrix expands.
+
+## 2026-02-18 (streaming usability activation)
+
+### Changed
+- Added streaming launch wrappers for easier runtime execution:
+  - `scripts/streaming_server.sh`
+  - `scripts/streaming_client.sh`
+- Added dedicated streaming manual:
+  - `docs/STREAMING_GUIDE.md` now documents server/client entrypoints, protocol shape, chunking defaults, and active-use profile.
+- Updated onboarding docs to surface streaming path more clearly:
+  - `README.md` streaming command now points to wrapper script.
+  - `docs/RUNBOOK.md` includes streaming startup section and guide reference.
+- Extended smoke-test helper for new HF provider:
+  - `scripts/run_samples.py` now accepts `hf_auto_asr` and allows HF model id via `--model-size`.
+
+### Verification
+- Executed docs integrity check: `python scripts/check_docs.py`.
+- Result: passed (no stale refs, no missing markdown links/anchors).
+
+### Notes
+- Current streaming path is socket/TCP based (`streaming/whisper_online_server.py`), not FastAPI WebSocket endpoint yet.
+- Active use is recommended with single-path execution (`streaming_server.sh` + `streaming_client.sh`) and conservative chunk settings.
+
+## 2026-02-18 (websocket streaming library integration)
+
+### Changed
+- Added library-backed websocket streaming server:
+  - `streaming/whisper_ws_server.py` using `websockets` transport.
+  - Reuses existing `OnlineASRProcessor` and ASR backend loading path.
+  - Supports binary PCM16 audio input and JSON final transcript events.
+- Added launcher script:
+  - `scripts/streaming_ws_server.sh`
+- Updated dependencies and manuals:
+  - `requirements-streaming.txt` adds `websockets`.
+  - `docs/STREAMING_GUIDE.md` includes WebSocket protocol and run examples.
+  - `README.md` / `docs/RUNBOOK.md` now include websocket startup path.
+
+### Verification
+- Syntax check: `python -m compileall streaming/whisper_ws_server.py` passed.
+- Docs integrity check: `python scripts/check_docs.py` passed.
+
+### Next Iteration Focus
+- Add reference websocket client example script for browser and Python usage.
+- Add reconnect/backoff and ring-buffer replay on client side.
+- Introduce partial/interim event stream in websocket protocol.
+
+## 2026-02-18 (hf auto asr prototype)
+
+### Changed
+- Added a new backend model type `hf_auto_asr` for provider-independent Hugging Face ASR testing:
+  - New model implementation: `backend/app/core/models/hf_auto_asr.py`
+  - Supports both AutoModel seq2seq and CTC loading paths via `transformers` pipeline fallback.
+  - Uses `model_size` as Hugging Face model id (repo id), not fixed faster-whisper model names.
+- Wired provider into backend model lifecycle:
+  - `backend/app/core/models/manager.py`: optional load + factory branch + cache info + supported-type message.
+  - `backend/app/schemas/transcription.py`: added `ModelType.HF_AUTO_ASR`.
+  - `backend/app/api/v1/transcribe.py`: provider discovery endpoint now exposes `hf_auto_asr`.
+  - `backend/app/main.py`: health response includes `hf_auto_asr_enabled` flag.
+  - `backend/app/config.py` and `backend/.env.example`: added `enable_hf_auto_asr` and `hf_auto_default_model`.
+- Updated docs for usage:
+  - `docs/API_USAGE.md` and `README.md` now mention `hf_auto_asr` with HF model-id usage.
+  - `backend/README.md` provider summary updated.
+
+### Verification
+- Executed: `python -m compileall app` in `backend/` — passed.
+- Executed: `python -m pytest tests/unit/test_basic.py tests/unit/test_formatters.py -v` — passed (26/26).
+- Attempted: `python -m pytest tests/unit/test_model_manager.py ...` failed in this environment due missing `faster_whisper` import dependency during test collection.
+
+### Notes
+- `hf_auto_asr` runtime requires `transformers` package (added to `backend/requirements.txt`).
+- Existing LSP command remains unavailable in this environment because `basedpyright-langserver` is not installed.

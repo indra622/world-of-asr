@@ -62,6 +62,7 @@ backend/
 ## Current State
 
 - local providers are the main stable path (`origin_whisper`, `faster_whisper`, `fast_conformer`)
+- generic HF AutoModel path is available via `hf_auto_asr` (`model_size`에 HF 모델 ID 전달)
 - external providers are feature-flagged and partly stub-based
 - current planning focus is real-time and scalability (see `docs/ROADMAP.md`)
 

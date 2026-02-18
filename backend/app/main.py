@@ -86,6 +86,7 @@ async def health_check():
         "providers": {
             "google_stt_enabled": cfg.enable_google,
             "qwen_asr_enabled": cfg.enable_qwen,
+            "hf_auto_asr_enabled": cfg.enable_hf_auto_asr,
         },
     }
 

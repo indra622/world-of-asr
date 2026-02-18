@@ -129,9 +129,9 @@ def main():
     ap.add_argument("--host", default="http://localhost:8000")
     ap.add_argument("--files", nargs="+", type=Path, required=True)
     ap.add_argument("--model", default="faster_whisper", choices=[
-        "origin_whisper", "faster_whisper", "fast_conformer", "google_stt", "qwen_asr"
+        "origin_whisper", "faster_whisper", "fast_conformer", "google_stt", "qwen_asr", "hf_auto_asr"
     ])
-    ap.add_argument("--model-size", default="large-v3")
+    ap.add_argument("--model-size", default="large-v3", help="Model size or HF model id (for hf_auto_asr)")
     ap.add_argument("--language", default="auto")
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--format", default="vtt", choices=["vtt", "srt", "json", "txt", "tsv"]) 

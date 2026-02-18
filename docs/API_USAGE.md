@@ -56,6 +56,7 @@ Notes:
 - `parameters.initial_prompt`: forwarded to prompt-capable models
 - `force_alignment`: runs alignment pass when word timings are missing (provider-dependent)
 - `postprocess`: optional chain (`pnc`, `vad`)
+- `model_type: "hf_auto_asr"` 사용 시 `model_size`에 Hugging Face 모델 ID를 넣어 범용 ASR 테스트 가능 (예: `openai/whisper-small`, `facebook/wav2vec2-base-960h`)
 
 ## 3) Poll Job Status
 

@@ -3,3 +3,4 @@ wtpsplit
 pyaudio
 python-dotenv
 faster-whisper
+websockets

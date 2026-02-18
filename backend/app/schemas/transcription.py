@@ -28,6 +28,7 @@ class ModelType(str, Enum):
     TRITON_CTC = "triton_ctc"
     TRITON_RNNT = "triton_rnnt"
     NVIDIA_RIVA = "nvidia_riva"
+    HF_AUTO_ASR = "hf_auto_asr"
 
 
 class OutputFormat(str, Enum):
@@ -109,7 +110,7 @@ class TranscriptionRequest(BaseModel):
     """전사 요청"""
     file_ids: List[str] = Field(min_length=1, max_length=10, description="업로드된 파일 ID 목록")
     model_type: ModelType = Field(description="ASR 모델 타입")
-    model_size: str = Field(default="large-v3", description="모델 크기")
+    model_size: str = Field(default="large-v3", description="모델 크기 또는 HF 모델 ID")
     language: Optional[str] = Field(default="ko", description="언어 힌트 (예: 'ko', 'en', 'auto')")
     device: str = Field(default="cuda", description="디바이스 (cpu, cuda)")
     parameters: TranscriptionParameters = Field(default_factory=TranscriptionParameters)

@@ -35,6 +35,7 @@ NemoCTCModel = _load_optional_model("app.core.models.nemo_ctc", "NemoCTCModel")
 NemoRNNTModel = _load_optional_model("app.core.models.nemo_rnnt", "NemoRNNTModel")
 TritonASRModel = _load_optional_model("app.core.models.triton_asr", "TritonASRModel")
 RivaASRModel = _load_optional_model("app.core.models.riva_asr", "RivaASRModel")
+HFAutoASRModel = _load_optional_model("app.core.models.hf_auto_asr", "HFAutoASRModel")
 
 
 class ModelManager:
@@ -189,19 +190,24 @@ class ModelManager:
                 raise ValueError("Triton disabled. Set enable_triton=True")
             if TritonASRModel is None:
                 raise ImportError("TritonASRModel not available")
-            triton_model = TritonASRModel(model_size, device)
-            triton_model.model_type = model_type
-            return triton_model
+            return TritonASRModel(model_size, device, model_type=model_type)
         elif model_type == "nvidia_riva":
             if not settings.enable_riva:
                 raise ValueError("Riva disabled. Set enable_riva=True")
             if RivaASRModel is None:
                 raise ImportError("RivaASRModel not available")
             return RivaASRModel(model_size, device)
+        elif model_type == "hf_auto_asr":
+            if not settings.enable_hf_auto_asr:
+                raise ValueError("HF Auto ASR is disabled. Set enable_hf_auto_asr=True")
+            if HFAutoASRModel is None:
+                raise ImportError("HFAutoASRModel not available (missing deps)")
+            resolved_model_size = model_size or settings.hf_auto_default_model
+            return HFAutoASRModel(resolved_model_size, device)
         else:
             raise ValueError(
                 f"Unknown model type: {model_type}. "
-                f"Supported types: origin_whisper, faster_whisper, fast_conformer, google_stt, qwen_asr, nemo_ctc_offline, nemo_rnnt_streaming, triton_ctc, triton_rnnt, nvidia_riva"
+                f"Supported types: origin_whisper, faster_whisper, fast_conformer, google_stt, qwen_asr, nemo_ctc_offline, nemo_rnnt_streaming, triton_ctc, triton_rnnt, nvidia_riva, hf_auto_asr"
             )
 
     def clear_cache(self, model_type: Optional[str] = None):
@@ -266,6 +272,7 @@ class ModelManager:
                 "origin_whisper": 0,
                 "faster_whisper": 0,
                 "fast_conformer": 0,
+                "hf_auto_asr": 0,
                 "total": len(self._models)
             }
 
@@ -276,6 +283,8 @@ class ModelManager:
                     info["faster_whisper"] += 1
                 elif key.startswith("fast_conformer"):
                     info["fast_conformer"] += 1
+                elif key.startswith("hf_auto_asr"):
+                    info["hf_auto_asr"] += 1
 
             return info
 
